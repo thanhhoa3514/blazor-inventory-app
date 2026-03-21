@@ -1,9 +1,110 @@
-﻿@page "/"
+@page "/"
+@inject HttpClient Http
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Inventory Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Inventory Dashboard</h1>
 
-Welcome to your new app.
+@if (isLoading)
+{
+    <p>Loading dashboard...</p>
+}
+else if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (summary is null)
+{
+    <div class="alert alert-warning">No inventory data found.</div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted">Products</h6>
+                    <h3>@summary.TotalProducts</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted">On Hand Units</h6>
+                    <h3>@summary.TotalOnHandUnits</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted">Inventory Value</h6>
+                    <h3>@summary.TotalInventoryValue.ToString("C")</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted">Low Stock</h6>
+                    <h3 class="text-danger">@summary.LowStockCount</h3>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+    <h4>Low Stock Items</h4>
+    @if (summary.LowStockItems.Count == 0)
+    {
+        <div class="alert alert-success">All products are above reorder level.</div>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>On Hand</th>
+                    <th>Reorder Level</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in summary.LowStockItems)
+                {
+                    <tr>
+                        <td>@item.Sku</td>
+                        <td>@item.Name</td>
+                        <td>@item.CategoryName</td>
+                        <td>@item.OnHandQty</td>
+                        <td>@item.ReorderLevel</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private string? error;
+    private InventorySummaryDto? summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            summary = await Http.GetFromJsonAsync<InventorySummaryDto>("api/inventory/summary");
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load dashboard: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

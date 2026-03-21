@@ -1,0 +1,180 @@
+@page "/categories"
+@inject HttpClient Http
+
+<PageTitle>Categories</PageTitle>
+
+<h1>Categories</h1>
+
+@if (!string.IsNullOrWhiteSpace(serverError))
+{
+    <div class="alert alert-danger">@serverError</div>
+}
+
+<EditForm Model="form" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="form.Name" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Description</label>
+            <InputText class="form-control" @bind-Value="form.Description" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                @(isSubmitting ? "Saving..." : (editingId.HasValue ? "Update" : "Create"))
+            </button>
+        </div>
+    </div>
+</EditForm>
+
+@if (isLoading)
+{
+    <p>Loading categories...</p>
+}
+else if (items.Count == 0)
+{
+    <div class="alert alert-warning">No categories found.</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in items)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Description</td>
+                    <td>@item.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-secondary me-2" @onclick="() => StartEdit(item)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(item.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private readonly CreateCategoryRequest form = new();
+    private readonly List<CategoryDto> items = new();
+    private int? editingId;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private string? serverError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        serverError = null;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
+            items.Clear();
+            if (result is not null)
+            {
+                items.AddRange(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Failed to load categories: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        isSubmitting = true;
+        serverError = null;
+        try
+        {
+            HttpResponseMessage response;
+            if (editingId.HasValue)
+            {
+                response = await Http.PutAsJsonAsync($"api/categories/{editingId.Value}", new UpdateCategoryRequest
+                {
+                    Name = form.Name,
+                    Description = form.Description
+                });
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/categories", form);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                serverError = await response.Content.ReadAsStringAsync();
+                return;
+            }
+
+            form.Name = string.Empty;
+            form.Description = string.Empty;
+            editingId = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void StartEdit(CategoryDto item)
+    {
+        editingId = item.Id;
+        form.Name = item.Name;
+        form.Description = item.Description;
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        serverError = null;
+        try
+        {
+            var response = await Http.DeleteAsync($"api/categories/{id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                serverError = await response.Content.ReadAsStringAsync();
+                return;
+            }
+
+            if (editingId == id)
+            {
+                editingId = null;
+                form.Name = string.Empty;
+                form.Description = string.Empty;
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Delete failed: {ex.Message}";
+        }
+    }
+}

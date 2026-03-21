@@ -1,0 +1,87 @@
+@page "/receipts/{Id:int}"
+@inject HttpClient Http
+
+<PageTitle>Receipt Detail</PageTitle>
+
+<h1>Receipt Detail</h1>
+
+@if (isLoading)
+{
+    <p>Loading receipt...</p>
+}
+else if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (item is null)
+{
+    <div class="alert alert-warning">Receipt not found.</div>
+}
+else
+{
+    <div class="mb-3">
+        <strong>Document:</strong> @item.DocumentNo<br />
+        <strong>Date:</strong> @item.ReceivedAtUtc.ToLocalTime().ToString("g")<br />
+        <strong>Supplier:</strong> @item.Supplier<br />
+        <strong>Note:</strong> @item.Note<br />
+        <strong>Total:</strong> @item.TotalAmount.ToString("C")
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Unit Cost</th>
+                <th>Line Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in item.Lines)
+            {
+                <tr>
+                    <td>@line.ProductSku</td>
+                    <td>@line.ProductName</td>
+                    <td>@line.Quantity</td>
+                    <td>@line.UnitCost.ToString("C")</td>
+                    <td>@line.LineTotal.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool isLoading = true;
+    private string? error;
+    private StockReceiptDetailDto? item;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        error = null;
+        try
+        {
+            var response = await Http.GetAsync($"api/receipts/{Id}");
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                item = null;
+                return;
+            }
+
+            response.EnsureSuccessStatusCode();
+            item = await response.Content.ReadFromJsonAsync<StockReceiptDetailDto>();
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to load receipt: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

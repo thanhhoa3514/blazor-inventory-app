@@ -1,0 +1,242 @@
+@page "/products"
+@inject HttpClient Http
+
+<PageTitle>Products</PageTitle>
+
+<h1>Products</h1>
+
+@if (!string.IsNullOrWhiteSpace(serverError))
+{
+    <div class="alert alert-danger">@serverError</div>
+}
+
+<EditForm Model="form" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="row g-2 mb-3">
+        <div class="col-md-2">
+            <label class="form-label">SKU</label>
+            <InputText class="form-control" @bind-Value="form.Sku" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="form.Name" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Description</label>
+            <InputText class="form-control" @bind-Value="form.Description" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Category</label>
+            <InputSelect class="form-select" @bind-Value="form.CategoryId">
+                <option value="0">Select category</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-md-1">
+            <label class="form-label">Reorder</label>
+            <InputNumber class="form-control" @bind-Value="form.ReorderLevel" />
+        </div>
+        <div class="col-md-1 d-grid align-items-end">
+            <button type="submit" class="btn btn-primary mt-4" disabled="@isSubmitting">
+                @(isSubmitting ? "..." : (editingId.HasValue ? "Update" : "Create"))
+            </button>
+        </div>
+    </div>
+</EditForm>
+
+@if (isLoading)
+{
+    <p>Loading products...</p>
+}
+else if (items.Count == 0)
+{
+    <div class="alert alert-warning">No products found.</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>On Hand</th>
+                <th>Avg Cost</th>
+                <th>Reorder</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in items)
+            {
+                <tr>
+                    <td>@item.Sku</td>
+                    <td>@item.Name</td>
+                    <td>@item.CategoryName</td>
+                    <td>@item.OnHandQty</td>
+                    <td>@item.AverageCost.ToString("C")</td>
+                    <td>@item.ReorderLevel</td>
+                    <td>@(item.IsActive ? "Active" : "Inactive")</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-secondary me-2" @onclick="() => StartEdit(item)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(item.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private class ProductForm : CreateProductRequest
+    {
+        public bool IsActive { get; set; } = true;
+    }
+
+    private readonly ProductForm form = new();
+    private readonly List<ProductDto> items = new();
+    private readonly List<CategoryDto> categories = new();
+    private int? editingId;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private string? serverError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        serverError = null;
+        try
+        {
+            var categoryResult = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
+            var productResult = await Http.GetFromJsonAsync<List<ProductDto>>("api/products");
+            categories.Clear();
+            items.Clear();
+
+            if (categoryResult is not null)
+            {
+                categories.AddRange(categoryResult);
+            }
+
+            if (productResult is not null)
+            {
+                items.AddRange(productResult);
+            }
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Failed to load products: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        isSubmitting = true;
+        serverError = null;
+        try
+        {
+            HttpResponseMessage response;
+            if (editingId.HasValue)
+            {
+                response = await Http.PutAsJsonAsync($"api/products/{editingId.Value}", new UpdateProductRequest
+                {
+                    Sku = form.Sku,
+                    Name = form.Name,
+                    Description = form.Description,
+                    CategoryId = form.CategoryId,
+                    ReorderLevel = form.ReorderLevel,
+                    IsActive = form.IsActive
+                });
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/products", new CreateProductRequest
+                {
+                    Sku = form.Sku,
+                    Name = form.Name,
+                    Description = form.Description,
+                    CategoryId = form.CategoryId,
+                    ReorderLevel = form.ReorderLevel
+                });
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                serverError = await response.Content.ReadAsStringAsync();
+                return;
+            }
+
+            ResetForm();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void StartEdit(ProductDto item)
+    {
+        editingId = item.Id;
+        form.Sku = item.Sku;
+        form.Name = item.Name;
+        form.Description = item.Description;
+        form.CategoryId = item.CategoryId;
+        form.ReorderLevel = item.ReorderLevel;
+        form.IsActive = item.IsActive;
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        serverError = null;
+        try
+        {
+            var response = await Http.DeleteAsync($"api/products/{id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                serverError = await response.Content.ReadAsStringAsync();
+                return;
+            }
+
+            if (editingId == id)
+            {
+                ResetForm();
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Delete failed: {ex.Message}";
+        }
+    }
+
+    private void ResetForm()
+    {
+        editingId = null;
+        form.Sku = string.Empty;
+        form.Name = string.Empty;
+        form.Description = null;
+        form.CategoryId = 0;
+        form.ReorderLevel = 5;
+        form.IsActive = true;
+    }
+}

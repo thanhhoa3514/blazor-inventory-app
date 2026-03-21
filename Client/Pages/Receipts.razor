@@ -1,0 +1,237 @@
+@page "/receipts"
+@inject HttpClient Http
+
+<PageTitle>Stock Receipts</PageTitle>
+
+<h1>Inbound - Stock Receipts</h1>
+
+@if (!string.IsNullOrWhiteSpace(serverError))
+{
+    <div class="alert alert-danger">@serverError</div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Create Receipt</h5>
+        <div class="row g-2 mb-2">
+            <div class="col-md-4">
+                <label class="form-label">Supplier</label>
+                <InputText class="form-control" @bind-Value="newReceipt.Supplier" />
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Note</label>
+                <InputText class="form-control" @bind-Value="newReceipt.Note" />
+            </div>
+        </div>
+
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">Product</label>
+                <InputSelect class="form-select" @bind-Value="lineProductId">
+                    <option value="0">Select product</option>
+                    @foreach (var product in products)
+                    {
+                        <option value="@product.Id">@product.Sku - @product.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Qty</label>
+                <InputNumber class="form-control" @bind-Value="lineQuantity" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Unit Cost</label>
+                <InputNumber class="form-control" @bind-Value="lineUnitCost" />
+            </div>
+            <div class="col-md-3 d-grid">
+                <button class="btn btn-outline-primary" @onclick="AddLine">Add Line</button>
+            </div>
+        </div>
+
+        @if (newReceipt.Lines.Count > 0)
+        {
+            <table class="table table-sm mt-3">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Unit Cost</th>
+                        <th>Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < newReceipt.Lines.Count; i++)
+                    {
+                        var line = newReceipt.Lines[i];
+                        var lineIndex = i;
+                        var name = products.FirstOrDefault(x => x.Id == line.ProductId)?.Name ?? line.ProductId.ToString();
+                        <tr>
+                            <td>@name</td>
+                            <td>@line.Quantity</td>
+                            <td>@line.UnitCost.ToString("C")</td>
+                            <td>@(line.Quantity * line.UnitCost).ToString("C")</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveLine(lineIndex)">Remove</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <button class="btn btn-primary" disabled="@isSubmitting" @onclick="SubmitAsync">
+                @(isSubmitting ? "Submitting..." : "Submit Receipt")
+            </button>
+        }
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading receipts...</p>
+}
+else if (receipts.Count == 0)
+{
+    <div class="alert alert-warning">No receipts found.</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Doc No</th>
+                <th>Date</th>
+                <th>Supplier</th>
+                <th>Total</th>
+                <th>Lines</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in receipts)
+            {
+                <tr>
+                    <td>@item.DocumentNo</td>
+                    <td>@item.ReceivedAtUtc.ToLocalTime().ToString("g")</td>
+                    <td>@item.Supplier</td>
+                    <td>@item.TotalAmount.ToString("C")</td>
+                    <td>@item.LineCount</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary" href="/receipts/@item.Id">Detail</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private string? serverError;
+    private int lineProductId;
+    private int lineQuantity = 1;
+    private decimal lineUnitCost = 1m;
+
+    private readonly CreateStockReceiptRequest newReceipt = new();
+    private readonly List<StockReceiptListDto> receipts = new();
+    private readonly List<ProductDto> products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        serverError = null;
+        try
+        {
+            var receiptResult = await Http.GetFromJsonAsync<List<StockReceiptListDto>>("api/receipts");
+            var productResult = await Http.GetFromJsonAsync<List<ProductDto>>("api/products");
+            receipts.Clear();
+            products.Clear();
+            if (receiptResult is not null)
+            {
+                receipts.AddRange(receiptResult);
+            }
+
+            if (productResult is not null)
+            {
+                products.AddRange(productResult.Where(x => x.IsActive));
+            }
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void AddLine()
+    {
+        if (lineProductId <= 0 || lineQuantity <= 0 || lineUnitCost < 0)
+        {
+            serverError = "Please select a product and enter valid quantity and unit cost.";
+            return;
+        }
+
+        newReceipt.Lines.Add(new CreateStockReceiptLineRequest
+        {
+            ProductId = lineProductId,
+            Quantity = lineQuantity,
+            UnitCost = lineUnitCost
+        });
+
+        lineProductId = 0;
+        lineQuantity = 1;
+        lineUnitCost = 1m;
+        serverError = null;
+    }
+
+    private void RemoveLine(int index)
+    {
+        newReceipt.Lines.RemoveAt(index);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (newReceipt.Lines.Count == 0)
+        {
+            serverError = "Add at least one line before submitting.";
+            return;
+        }
+
+        isSubmitting = true;
+        serverError = null;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/receipts", newReceipt);
+            if (!response.IsSuccessStatusCode)
+            {
+                serverError = await response.Content.ReadAsStringAsync();
+                return;
+            }
+
+            newReceipt.Supplier = null;
+            newReceipt.Note = null;
+            newReceipt.Lines.Clear();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Submit failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
+
+
+
