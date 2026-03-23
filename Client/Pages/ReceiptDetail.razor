@@ -1,55 +1,51 @@
 @page "/receipts/{Id:int}"
+@using MudBlazor
 @inject HttpClient Http
 
 <PageTitle>Receipt Detail</PageTitle>
 
-<h1>Receipt Detail</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Receipt Detail</MudText>
 
 @if (isLoading)
 {
-    <p>Loading receipt...</p>
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
 }
 else if (!string.IsNullOrWhiteSpace(error))
 {
-    <div class="alert alert-danger">@error</div>
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true">@error</MudAlert>
 }
 else if (item is null)
 {
-    <div class="alert alert-warning">Receipt not found.</div>
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true">Receipt not found.</MudAlert>
 }
 else
 {
-    <div class="mb-3">
-        <strong>Document:</strong> @item.DocumentNo<br />
-        <strong>Date:</strong> @item.ReceivedAtUtc.ToLocalTime().ToString("g")<br />
-        <strong>Supplier:</strong> @item.Supplier<br />
-        <strong>Note:</strong> @item.Note<br />
-        <strong>Total:</strong> @item.TotalAmount.ToString("C")
-    </div>
+    <MudPaper Elevation="1" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="6"><MudText><b>Document:</b> @item.DocumentNo</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Date:</b> @item.ReceivedAtUtc.ToLocalTime().ToString("g")</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Supplier:</b> @item.Supplier</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Total:</b> @item.TotalAmount.ToString("C")</MudText></MudItem>
+            <MudItem xs="12"><MudText><b>Note:</b> @item.Note</MudText></MudItem>
+        </MudGrid>
+    </MudPaper>
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>SKU</th>
-                <th>Product</th>
-                <th>Qty</th>
-                <th>Unit Cost</th>
-                <th>Line Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var line in item.Lines)
-            {
-                <tr>
-                    <td>@line.ProductSku</td>
-                    <td>@line.ProductName</td>
-                    <td>@line.Quantity</td>
-                    <td>@line.UnitCost.ToString("C")</td>
-                    <td>@line.LineTotal.ToString("C")</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudTable T="StockReceiptDetailLineDto" Items="item.Lines" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>SKU</MudTh>
+            <MudTh>Product</MudTh>
+            <MudTh>Qty</MudTh>
+            <MudTh>Unit Cost</MudTh>
+            <MudTh>Line Total</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ProductSku</MudTd>
+            <MudTd>@context.ProductName</MudTd>
+            <MudTd>@context.Quantity</MudTd>
+            <MudTd>@context.UnitCost.ToString("C")</MudTd>
+            <MudTd>@context.LineTotal.ToString("C")</MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {

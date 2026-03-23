@@ -1,134 +1,127 @@
 @page "/receipts"
+@using MudBlazor
 @inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>Stock Receipts</PageTitle>
 
-<h1>Inbound - Stock Receipts</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Inbound - Stock Receipts</MudText>
 
 @if (!string.IsNullOrWhiteSpace(serverError))
 {
-    <div class="alert alert-danger">@serverError</div>
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mb-4">
+        @serverError
+    </MudAlert>
 }
 
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">Create Receipt</h5>
-        <div class="row g-2 mb-2">
-            <div class="col-md-4">
-                <label class="form-label">Supplier</label>
-                <InputText class="form-control" @bind-Value="newReceipt.Supplier" />
-            </div>
-            <div class="col-md-8">
-                <label class="form-label">Note</label>
-                <InputText class="form-control" @bind-Value="newReceipt.Note" />
-            </div>
-        </div>
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-3">Create Receipt</MudText>
 
-        <div class="row g-2 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label">Product</label>
-                <InputSelect class="form-select" @bind-Value="lineProductId">
-                    <option value="0">Select product</option>
-                    @foreach (var product in products)
-                    {
-                        <option value="@product.Id">@product.Sku - @product.Name</option>
-                    }
-                </InputSelect>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Qty</label>
-                <InputNumber class="form-control" @bind-Value="lineQuantity" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Unit Cost</label>
-                <InputNumber class="form-control" @bind-Value="lineUnitCost" />
-            </div>
-            <div class="col-md-3 d-grid">
-                <button class="btn btn-outline-primary" @onclick="AddLine">Add Line</button>
-            </div>
-        </div>
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudTextField T="string" Label="Supplier" Variant="Variant.Outlined" @bind-Value="newReceipt.Supplier" />
+        </MudItem>
+        <MudItem xs="12" md="8">
+            <MudTextField T="string" Label="Note" Variant="Variant.Outlined" @bind-Value="newReceipt.Note" />
+        </MudItem>
 
-        @if (newReceipt.Lines.Count > 0)
-        {
-            <table class="table table-sm mt-3">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Unit Cost</th>
-                        <th>Total</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var i = 0; i < newReceipt.Lines.Count; i++)
-                    {
-                        var line = newReceipt.Lines[i];
-                        var lineIndex = i;
-                        var name = products.FirstOrDefault(x => x.Id == line.ProductId)?.Name ?? line.ProductId.ToString();
-                        <tr>
-                            <td>@name</td>
-                            <td>@line.Quantity</td>
-                            <td>@line.UnitCost.ToString("C")</td>
-                            <td>@(line.Quantity * line.UnitCost).ToString("C")</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveLine(lineIndex)">Remove</button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <MudItem xs="12" md="5">
+            <MudSelect T="int" Label="Product" Variant="Variant.Outlined" @bind-Value="lineProductId">
+                <MudSelectItem T="int" Value="0">Select product</MudSelectItem>
+                @foreach (var product in products)
+                {
+                    <MudSelectItem T="int" Value="@product.Id">@($"{product.Sku} - {product.Name}")</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudNumericField T="int" Label="Qty" Min="1" Variant="Variant.Outlined" @bind-Value="lineQuantity" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudNumericField T="decimal" Label="Unit Cost" Min="0" Variant="Variant.Outlined" @bind-Value="lineUnitCost" />
+        </MudItem>
+        <MudItem xs="12" md="3" Class="d-flex align-end">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AddLine">Add Line</MudButton>
+        </MudItem>
+    </MudGrid>
 
-            <button class="btn btn-primary" disabled="@isSubmitting" @onclick="SubmitAsync">
+    @if (newReceipt.Lines.Count > 0)
+    {
+        <MudTable T="CreateStockReceiptLineRequest" Items="newReceipt.Lines" Hover="true" Dense="true" Class="mt-4">
+            <HeaderContent>
+                <MudTh>Product</MudTh>
+                <MudTh>Qty</MudTh>
+                <MudTh>Unit Cost</MudTh>
+                <MudTh>Total</MudTh>
+                <MudTh Class="text-right">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@GetProductName(context.ProductId)</MudTd>
+                <MudTd>@context.Quantity</MudTd>
+                <MudTd>@context.UnitCost.ToString("C")</MudTd>
+                <MudTd>@(context.Quantity * context.UnitCost).ToString("C")</MudTd>
+                <MudTd Class="text-right">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveLine(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-3">
+            <MudText Typo="Typo.subtitle1">Total: @CurrentTotal.ToString("C")</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@isSubmitting" OnClick="SubmitAsync">
                 @(isSubmitting ? "Submitting..." : "Submit Receipt")
-            </button>
-        }
-    </div>
-</div>
+            </MudButton>
+        </MudStack>
+    }
+</MudPaper>
 
-@if (isLoading)
-{
-    <p>Loading receipts...</p>
-}
-else if (receipts.Count == 0)
-{
-    <div class="alert alert-warning">No receipts found.</div>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Doc No</th>
-                <th>Date</th>
-                <th>Supplier</th>
-                <th>Total</th>
-                <th>Lines</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in receipts)
-            {
-                <tr>
-                    <td>@item.DocumentNo</td>
-                    <td>@item.ReceivedAtUtc.ToLocalTime().ToString("g")</td>
-                    <td>@item.Supplier</td>
-                    <td>@item.TotalAmount.ToString("C")</td>
-                    <td>@item.LineCount</td>
-                    <td class="text-end">
-                        <a class="btn btn-sm btn-outline-secondary" href="/receipts/@item.Id">Detail</a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+<MudTable T="StockReceiptListDto" @ref="table" ServerData="LoadServerData" Hover="true" Dense="true" Loading="@isLoading">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Receipt History</MudText>
+        <MudSpacer />
+        <MudTextField T="string"
+                      Label="Search"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Value="@searchTerm"
+                      ValueChanged="OnSearchChanged" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="StockReceiptListDto" SortLabel="doc">Doc No</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockReceiptListDto" SortLabel="date">Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockReceiptListDto" SortLabel="supplier">Supplier</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockReceiptListDto" SortLabel="total">Total</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockReceiptListDto" SortLabel="lines">Lines</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Doc No">@context.DocumentNo</MudTd>
+        <MudTd DataLabel="Date">@context.ReceivedAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Supplier">@context.Supplier</MudTd>
+        <MudTd DataLabel="Total">@context.TotalAmount.ToString("C")</MudTd>
+        <MudTd DataLabel="Lines">@context.LineCount</MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" Href="@($"/receipts/{context.Id}")">Detail</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No receipts found.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 5, 10, 25, 50 }" />
+    </PagerContent>
+</MudTable>
 
 @code {
+    private MudTable<StockReceiptListDto>? table;
     private bool isLoading = true;
     private bool isSubmitting;
     private string? serverError;
+    private string searchTerm = string.Empty;
+
     private int lineProductId;
     private int lineQuantity = 1;
     private decimal lineUnitCost = 1m;
@@ -136,6 +129,8 @@ else
     private readonly CreateStockReceiptRequest newReceipt = new();
     private readonly List<StockReceiptListDto> receipts = new();
     private readonly List<ProductDto> products = new();
+
+    private decimal CurrentTotal => newReceipt.Lines.Sum(x => x.Quantity * x.UnitCost);
 
     protected override async Task OnInitializedAsync()
     {
@@ -146,12 +141,15 @@ else
     {
         isLoading = true;
         serverError = null;
+
         try
         {
             var receiptResult = await Http.GetFromJsonAsync<List<StockReceiptListDto>>("api/receipts");
             var productResult = await Http.GetFromJsonAsync<List<ProductDto>>("api/products");
+
             receipts.Clear();
             products.Clear();
+
             if (receiptResult is not null)
             {
                 receipts.AddRange(receiptResult);
@@ -169,6 +167,10 @@ else
         finally
         {
             isLoading = false;
+            if (table is not null)
+            {
+                await table.ReloadServerData();
+            }
         }
     }
 
@@ -193,9 +195,9 @@ else
         serverError = null;
     }
 
-    private void RemoveLine(int index)
+    private void RemoveLine(CreateStockReceiptLineRequest line)
     {
-        newReceipt.Lines.RemoveAt(index);
+        newReceipt.Lines.Remove(line);
     }
 
     private async Task SubmitAsync()
@@ -206,20 +208,34 @@ else
             return;
         }
 
+        var confirmed = await ConfirmAsync(
+            title: "Submit Receipt",
+            content: $"Submit receipt with {newReceipt.Lines.Count} line(s) and total {CurrentTotal:C}?",
+            buttonText: "Submit",
+            color: Color.Primary);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
         isSubmitting = true;
         serverError = null;
+
         try
         {
             var response = await Http.PostAsJsonAsync("api/receipts", newReceipt);
             if (!response.IsSuccessStatusCode)
             {
-                serverError = await response.Content.ReadAsStringAsync();
+                serverError = NormalizeServerError(await response.Content.ReadAsStringAsync());
                 return;
             }
 
             newReceipt.Supplier = null;
             newReceipt.Note = null;
             newReceipt.Lines.Clear();
+
+            Snackbar.Add("Receipt submitted successfully.", Severity.Success);
             await LoadAsync();
         }
         catch (Exception ex)
@@ -231,7 +247,79 @@ else
             isSubmitting = false;
         }
     }
+
+    private async Task<TableData<StockReceiptListDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        await Task.Yield();
+
+        IEnumerable<StockReceiptListDto> query = receipts;
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var keyword = searchTerm.Trim();
+            query = query.Where(x =>
+                x.DocumentNo.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(x.Supplier) && x.Supplier.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        query = state.SortLabel switch
+        {
+            "doc" => ApplySort(query, state.SortDirection, x => x.DocumentNo),
+            "date" => ApplySort(query, state.SortDirection, x => x.ReceivedAtUtc),
+            "supplier" => ApplySort(query, state.SortDirection, x => x.Supplier),
+            "total" => ApplySort(query, state.SortDirection, x => x.TotalAmount),
+            "lines" => ApplySort(query, state.SortDirection, x => x.LineCount),
+            _ => query.OrderByDescending(x => x.ReceivedAtUtc)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return new TableData<StockReceiptListDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        };
+    }
+
+    private static IEnumerable<StockReceiptListDto> ApplySort<TKey>(IEnumerable<StockReceiptListDto> query, SortDirection direction, Func<StockReceiptListDto, TKey> keySelector)
+        => direction == SortDirection.Descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchTerm = value;
+        if (table is not null)
+        {
+            await table.ReloadServerData();
+        }
+    }
+
+    private string GetProductName(int productId)
+    {
+        var product = products.FirstOrDefault(x => x.Id == productId);
+        return product is null ? $"Product #{productId}" : $"{product.Sku} - {product.Name}";
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
+    private static string NormalizeServerError(string raw)
+        => string.IsNullOrWhiteSpace(raw) ? "Request failed." : raw.Trim().Trim('"');
 }
-
-
-

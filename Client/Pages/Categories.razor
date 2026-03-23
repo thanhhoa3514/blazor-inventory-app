@@ -1,79 +1,84 @@
 @page "/categories"
+@using MudBlazor
 @inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>Categories</PageTitle>
 
-<h1>Categories</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Categories</MudText>
 
 @if (!string.IsNullOrWhiteSpace(serverError))
 {
-    <div class="alert alert-danger">@serverError</div>
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mb-4">
+        @serverError
+    </MudAlert>
 }
 
-<EditForm Model="form" OnValidSubmit="SaveAsync">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudForm @ref="formRef" Model="@form">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" Label="Name" Variant="Variant.Outlined" @bind-Value="form.Name" For="@(() => form.Name)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" Label="Description" Variant="Variant.Outlined" @bind-Value="form.Description" For="@(() => form.Description)" />
+            </MudItem>
+            <MudItem xs="12" md="2" Class="d-flex align-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@isSubmitting" OnClick="SaveAsync">
+                    @(isSubmitting ? "Saving..." : (editingId.HasValue ? "Update" : "Create"))
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudForm>
+</MudPaper>
 
-    <div class="row g-2 align-items-end mb-3">
-        <div class="col-md-4">
-            <label class="form-label">Name</label>
-            <InputText class="form-control" @bind-Value="form.Name" />
-        </div>
-        <div class="col-md-6">
-            <label class="form-label">Description</label>
-            <InputText class="form-control" @bind-Value="form.Description" />
-        </div>
-        <div class="col-md-2 d-grid">
-            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
-                @(isSubmitting ? "Saving..." : (editingId.HasValue ? "Update" : "Create"))
-            </button>
-        </div>
-    </div>
-</EditForm>
-
-@if (isLoading)
-{
-    <p>Loading categories...</p>
-}
-else if (items.Count == 0)
-{
-    <div class="alert alert-warning">No categories found.</div>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Created</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in items)
-            {
-                <tr>
-                    <td>@item.Name</td>
-                    <td>@item.Description</td>
-                    <td>@item.CreatedAtUtc.ToLocalTime().ToString("g")</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-secondary me-2" @onclick="() => StartEdit(item)">Edit</button>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(item.Id)">Delete</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+<MudTable T="CategoryDto" @ref="table" ServerData="LoadServerData" Hover="true" Dense="true" Loading="@isLoading">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Category List</MudText>
+        <MudSpacer />
+        <MudTextField T="string"
+                      Label="Search"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Value="@searchTerm"
+                      ValueChanged="OnSearchChanged" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="CategoryDto" SortLabel="name">Name</MudTableSortLabel></MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh><MudTableSortLabel T="CategoryDto" SortLabel="created">Created</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd DataLabel="Created">@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => StartEdit(context))">Edit</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2" OnClick="@(() => DeleteAsync(context))">Delete</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No categories found.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 5, 10, 25, 50 }" />
+    </PagerContent>
+</MudTable>
 
 @code {
     private readonly CreateCategoryRequest form = new();
     private readonly List<CategoryDto> items = new();
+    private MudForm? formRef;
+    private MudTable<CategoryDto>? table;
     private int? editingId;
     private bool isLoading = true;
     private bool isSubmitting;
     private string? serverError;
+    private string searchTerm = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,11 +105,26 @@ else
         finally
         {
             isLoading = false;
+            if (table is not null)
+            {
+                await table.ReloadServerData();
+            }
         }
     }
 
     private async Task SaveAsync()
     {
+        if (formRef is null)
+        {
+            return;
+        }
+
+        await formRef.Validate();
+        if (!formRef.IsValid)
+        {
+            return;
+        }
+
         isSubmitting = true;
         serverError = null;
         try
@@ -125,13 +145,12 @@ else
 
             if (!response.IsSuccessStatusCode)
             {
-                serverError = await response.Content.ReadAsStringAsync();
+                serverError = NormalizeServerError(await response.Content.ReadAsStringAsync());
                 return;
             }
 
-            form.Name = string.Empty;
-            form.Description = string.Empty;
-            editingId = null;
+            Snackbar.Add(editingId.HasValue ? "Category updated." : "Category created.", Severity.Success);
+            ResetForm();
             await LoadAsync();
         }
         catch (Exception ex)
@@ -151,25 +170,36 @@ else
         form.Description = item.Description;
     }
 
-    private async Task DeleteAsync(int id)
+    private async Task DeleteAsync(CategoryDto item)
     {
         serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Delete Category",
+            content: $"Delete '{item.Name}'? This action cannot be undone.",
+            buttonText: "Delete",
+            color: Color.Error);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
         try
         {
-            var response = await Http.DeleteAsync($"api/categories/{id}");
+            var response = await Http.DeleteAsync($"api/categories/{item.Id}");
             if (!response.IsSuccessStatusCode)
             {
-                serverError = await response.Content.ReadAsStringAsync();
+                serverError = NormalizeServerError(await response.Content.ReadAsStringAsync());
                 return;
             }
 
-            if (editingId == id)
+            if (editingId == item.Id)
             {
-                editingId = null;
-                form.Name = string.Empty;
-                form.Description = string.Empty;
+                ResetForm();
             }
 
+            Snackbar.Add("Category deleted.", Severity.Success);
             await LoadAsync();
         }
         catch (Exception ex)
@@ -177,4 +207,78 @@ else
             serverError = $"Delete failed: {ex.Message}";
         }
     }
+
+    private async Task<TableData<CategoryDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        await Task.Yield();
+
+        IEnumerable<CategoryDto> query = items;
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var keyword = searchTerm.Trim();
+            query = query.Where(x =>
+                x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(x.Description) && x.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        query = state.SortLabel switch
+        {
+            "name" => state.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(x => x.Name)
+                : query.OrderBy(x => x.Name),
+            "created" => state.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(x => x.CreatedAtUtc)
+                : query.OrderBy(x => x.CreatedAtUtc),
+            _ => query.OrderBy(x => x.Name)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return new TableData<CategoryDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        };
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchTerm = value;
+        if (table is not null)
+        {
+            await table.ReloadServerData();
+        }
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
+    private void ResetForm()
+    {
+        editingId = null;
+        form.Name = string.Empty;
+        form.Description = string.Empty;
+    }
+
+    private static string NormalizeServerError(string raw)
+        => string.IsNullOrWhiteSpace(raw) ? "Request failed." : raw.Trim().Trim('"');
 }
