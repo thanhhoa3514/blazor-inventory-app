@@ -1,0 +1,97 @@
+@page "/login"
+@inject NavigationManager Navigation
+@inject AuthStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+
+<PageTitle>Login</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Elevation="2" Class="pa-6">
+        <MudText Typo="Typo.h4" Class="mb-2">Inventory Login</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">Sign in with your assigned role account.</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(_serverError))
+        {
+            <ErrorState Message="@_serverError" Class="mb-4" />
+        }
+
+        <MudForm @ref="_formRef" Model="@_request">
+            <MudTextField T="string"
+                          Label="Username or Email"
+                          Variant="Variant.Outlined"
+                          @bind-Value="_request.UserNameOrEmail"
+                          For="@(() => _request.UserNameOrEmail)"
+                          Required="true"
+                          Class="mb-3" />
+            <MudTextField T="string"
+                          Label="Password"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          @bind-Value="_request.Password"
+                          For="@(() => _request.Password)"
+                          Required="true"
+                          Class="mb-4" />
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="@_isSubmitting"
+                       OnClick="SubmitAsync">
+                @(_isSubmitting ? "Signing in..." : "Sign In")
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private readonly LoginRequest _request = new();
+    private MudForm? _formRef;
+    private string? _serverError;
+    private bool _isSubmitting;
+
+    private async Task SubmitAsync()
+    {
+        if (_formRef is null)
+        {
+            return;
+        }
+
+        await _formRef.Validate();
+        if (!_formRef.IsValid)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _serverError = null;
+
+        try
+        {
+            var result = await AuthStateProvider.SignInAsync(_request);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add("Login successful.", Severity.Success);
+            Navigation.NavigateTo(GetReturnUrl(), forceLoad: false);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private string GetReturnUrl()
+    {
+        if (string.IsNullOrWhiteSpace(ReturnUrl))
+        {
+            return "/";
+        }
+
+        return ReturnUrl.StartsWith('/') ? ReturnUrl : "/";
+    }
+}

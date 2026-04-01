@@ -1,0 +1,38 @@
+@namespace MyApp.Client.Features.Adjustments.Components
+
+<MudGrid>
+    <MudItem xs="12" md="5">
+        <MudSelect T="int" Label="Product" Variant="Variant.Outlined" Value="@SelectedProductId" ValueChanged="SelectedProductIdChanged">
+            <MudSelectItem T="int" Value="0">Select product</MudSelectItem>
+            @foreach (var product in Products)
+            {
+                <MudSelectItem T="int" Value="@product.Id">@($"{product.Sku} - {product.Name} (On hand: {product.OnHandQty})")</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="12" md="3">
+        <MudSelect T="string" Label="Direction" Variant="Variant.Outlined" Value="@Direction" ValueChanged="DirectionChanged">
+            <MudSelectItem T="string" Value="@StockAdjustmentDirections.Increase">Increase</MudSelectItem>
+            <MudSelectItem T="string" Value="@StockAdjustmentDirections.Decrease">Decrease</MudSelectItem>
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="6" md="2">
+        <MudNumericField T="int" Label="Qty" Min="1" Variant="Variant.Outlined" Value="@Quantity" ValueChanged="QuantityChanged" />
+    </MudItem>
+    <MudItem xs="12" md="2" Class="d-flex align-end">
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="OnAddLine">
+            Add Line
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public IReadOnlyList<ProductDto> Products { get; set; } = Array.Empty<ProductDto>();
+    [Parameter] public int SelectedProductId { get; set; }
+    [Parameter] public EventCallback<int> SelectedProductIdChanged { get; set; }
+    [Parameter] public string Direction { get; set; } = StockAdjustmentDirections.Increase;
+    [Parameter] public EventCallback<string> DirectionChanged { get; set; }
+    [Parameter] public int Quantity { get; set; } = 1;
+    [Parameter] public EventCallback<int> QuantityChanged { get; set; }
+    [Parameter] public EventCallback OnAddLine { get; set; }
+}

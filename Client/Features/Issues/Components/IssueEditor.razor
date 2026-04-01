@@ -1,0 +1,68 @@
+@namespace MyApp.Client.Features.Issues.Components
+
+<AuthorizeView Roles="@AppRoles.AdminOrWarehouseStaff">
+    <Authorized>
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Issue</MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string" Label="Customer" Variant="Variant.Outlined" @bind-Value="Model.Customer" />
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudTextField T="string" Label="Note" Variant="Variant.Outlined" @bind-Value="Model.Note" />
+                </MudItem>
+            </MudGrid>
+
+            <IssueLineEditor Products="Products"
+                             SelectedProductId="SelectedProductId"
+                             SelectedProductIdChanged="SelectedProductIdChanged"
+                             Quantity="Quantity"
+                             QuantityChanged="QuantityChanged"
+                             OnAddLine="OnAddLine" />
+
+            @if (Model.Lines.Count > 0)
+            {
+                <MudTable T="CreateStockIssueLineRequest" Items="Model.Lines" Hover="true" Dense="true" Class="mt-4">
+                    <HeaderContent>
+                        <MudTh>Product</MudTh>
+                        <MudTh>Qty</MudTh>
+                        <MudTh Class="text-right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="line">
+                        <MudTd>@GetProductName(line.ProductId)</MudTd>
+                        <MudTd>@line.Quantity</MudTd>
+                        <MudTd Class="text-right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => OnRemoveLine.InvokeAsync(line))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@IsSubmitting" OnClick="OnSubmit">
+                        @(IsSubmitting ? "Submitting..." : "Submit Issue")
+                    </MudButton>
+                </MudStack>
+            }
+        </MudPaper>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [Parameter, EditorRequired] public CreateStockIssueRequest Model { get; set; } = default!;
+    [Parameter] public IReadOnlyList<ProductDto> Products { get; set; } = Array.Empty<ProductDto>();
+    [Parameter] public int SelectedProductId { get; set; }
+    [Parameter] public EventCallback<int> SelectedProductIdChanged { get; set; }
+    [Parameter] public int Quantity { get; set; } = 1;
+    [Parameter] public EventCallback<int> QuantityChanged { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public EventCallback OnAddLine { get; set; }
+    [Parameter] public EventCallback<CreateStockIssueLineRequest> OnRemoveLine { get; set; }
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    private string GetProductName(int productId)
+    {
+        var product = Products.FirstOrDefault(x => x.Id == productId);
+        return product is null ? $"Product #{productId}" : $"{product.Sku} - {product.Name}";
+    }
+}

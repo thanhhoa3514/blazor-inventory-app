@@ -1,0 +1,50 @@
+@namespace MyApp.Client.Features.Adjustments.Components
+
+<MudTable T="StockAdjustmentListDto" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Adjustment History</MudText>
+        <MudSpacer />
+        <MudTextField T="string"
+                      Label="Search"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Value="@SearchTerm"
+                      ValueChanged="SearchTermChanged" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="doc">Doc No</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="date">Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="reason">Reason</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="total">Net Value</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="lines">Lines</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Doc No">@context.DocumentNo</MudTd>
+        <MudTd DataLabel="Date">@context.AdjustedAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Reason">@context.Reason</MudTd>
+        <MudTd DataLabel="Net Value">@context.TotalAmount.ToString("C")</MudTd>
+        <MudTd DataLabel="Lines">@context.LineCount</MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" Href="@($"/adjustments/{context.Id}")">Detail</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No adjustments found.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 5, 10, 25, 50 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string SearchTerm { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SearchTermChanged { get; set; }
+    [Parameter, EditorRequired] public Func<TableState, CancellationToken, Task<TableData<StockAdjustmentListDto>>> ServerData { get; set; } = default!;
+
+    private Task<TableData<StockAdjustmentListDto>> LoadServerDataAsync(TableState state, CancellationToken cancellationToken)
+        => ServerData.Invoke(state, cancellationToken);
+}

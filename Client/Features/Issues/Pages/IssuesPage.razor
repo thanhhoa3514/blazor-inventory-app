@@ -1,0 +1,210 @@
+@page "/issues"
+@attribute [Authorize]
+@inject IssueApiClient IssueApiClient
+@inject ProductApiClient ProductApiClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Stock Issues</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Outbound - Stock Issues</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_serverError))
+{
+    <ErrorState Message="@_serverError" Class="mb-4" />
+}
+
+<IssueEditor Model="_newIssue"
+             Products="_products"
+             SelectedProductId="_lineProductId"
+             SelectedProductIdChanged="@(value => _lineProductId = value)"
+             Quantity="_lineQuantity"
+             QuantityChanged="@(value => _lineQuantity = value)"
+             IsSubmitting="_isSubmitting"
+             OnAddLine="AddLine"
+             OnRemoveLine="RemoveLine"
+             OnSubmit="SubmitAsync" />
+
+<IssueHistoryTable IsLoading="_isLoading"
+                   SearchTerm="_searchTerm"
+                   SearchTermChanged="OnSearchChanged"
+                   ServerData="LoadServerData" />
+
+@code {
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string? _serverError;
+    private string _searchTerm = string.Empty;
+
+    private int _lineProductId;
+    private int _lineQuantity = 1;
+
+    private readonly CreateStockIssueRequest _newIssue = new();
+    private readonly List<StockIssueListDto> _issues = new();
+    private readonly List<ProductDto> _products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _serverError = null;
+
+        try
+        {
+            var issueResult = await IssueApiClient.GetAllAsync();
+            var productResult = await ProductApiClient.GetActiveAsync();
+
+            _issues.Clear();
+            _products.Clear();
+            _issues.AddRange(issueResult);
+            _products.AddRange(productResult);
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Task AddLine()
+    {
+        if (_lineProductId <= 0 || _lineQuantity <= 0)
+        {
+            _serverError = "Please select a product and enter valid quantity.";
+            return Task.CompletedTask;
+        }
+
+        _newIssue.Lines.Add(new CreateStockIssueLineRequest
+        {
+            ProductId = _lineProductId,
+            Quantity = _lineQuantity
+        });
+
+        _lineProductId = 0;
+        _lineQuantity = 1;
+        _serverError = null;
+        return Task.CompletedTask;
+    }
+
+    private Task RemoveLine(CreateStockIssueLineRequest line)
+    {
+        _newIssue.Lines.Remove(line);
+        return Task.CompletedTask;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_newIssue.Lines.Count == 0)
+        {
+            _serverError = "Add at least one line before submitting.";
+            return;
+        }
+
+        var confirmed = await ConfirmAsync(
+            title: "Submit Issue",
+            content: $"Submit issue with {_newIssue.Lines.Count} line(s)?",
+            buttonText: "Submit",
+            color: Color.Primary);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _serverError = null;
+
+        try
+        {
+            var result = await IssueApiClient.CreateAsync(_newIssue);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            _newIssue.Customer = null;
+            _newIssue.Note = null;
+            _newIssue.Lines.Clear();
+
+            Snackbar.Add("Issue submitted successfully.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Submit failed: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private Task<TableData<StockIssueListDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        IEnumerable<StockIssueListDto> query = _issues;
+
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            var keyword = _searchTerm.Trim();
+            query = query.Where(x =>
+                x.DocumentNo.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(x.Customer) && x.Customer.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        query = state.SortLabel switch
+        {
+            "doc" => ApplySort(query, state.SortDirection, x => x.DocumentNo),
+            "date" => ApplySort(query, state.SortDirection, x => x.IssuedAtUtc),
+            "customer" => ApplySort(query, state.SortDirection, x => x.Customer),
+            "total" => ApplySort(query, state.SortDirection, x => x.TotalAmount),
+            "lines" => ApplySort(query, state.SortDirection, x => x.LineCount),
+            _ => query.OrderByDescending(x => x.IssuedAtUtc)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return Task.FromResult(new TableData<StockIssueListDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        });
+    }
+
+    private static IEnumerable<StockIssueListDto> ApplySort<TKey>(IEnumerable<StockIssueListDto> query, SortDirection direction, Func<StockIssueListDto, TKey> keySelector)
+        => direction == SortDirection.Descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
+
+    private Task OnSearchChanged(string value)
+    {
+        _searchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+}

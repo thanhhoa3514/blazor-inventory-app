@@ -1,0 +1,32 @@
+@namespace MyApp.Client.Features.Inventory.Components
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="1" Class="pa-4">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Products</MudText>
+            <MudText Typo="Typo.h4">@Summary.TotalProducts</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="1" Class="pa-4">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">On Hand Units</MudText>
+            <MudText Typo="Typo.h4">@Summary.TotalOnHandUnits</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="1" Class="pa-4">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Inventory Value</MudText>
+            <MudText Typo="Typo.h4">@Summary.TotalInventoryValue.ToString("C")</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="1" Class="pa-4">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Low Stock</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Error">@Summary.LowStockCount</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter, EditorRequired] public InventorySummaryDto Summary { get; set; } = default!;
+}

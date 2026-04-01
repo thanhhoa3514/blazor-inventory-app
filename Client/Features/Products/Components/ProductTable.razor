@@ -1,0 +1,62 @@
+@namespace MyApp.Client.Features.Products.Components
+
+<MudTable T="ProductDto" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Product List</MudText>
+        <MudSpacer />
+        <MudTextField T="string" Label="Search" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Value="@Filter.SearchTerm"
+                      ValueChanged="FilterChanged" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="ProductDto" SortLabel="sku">SKU</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductDto" SortLabel="name">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductDto" SortLabel="category">Category</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductDto" SortLabel="onhand">On Hand</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductDto" SortLabel="avgcost">Avg Cost</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProductDto" SortLabel="reorder">Reorder</MudTableSortLabel></MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh Class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="SKU">@context.Sku</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Category">@context.CategoryName</MudTd>
+        <MudTd DataLabel="On Hand">@context.OnHandQty</MudTd>
+        <MudTd DataLabel="Avg Cost">@context.AverageCost.ToString("C")</MudTd>
+        <MudTd DataLabel="Reorder">@context.ReorderLevel</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                @(context.IsActive ? "Active" : "Inactive")
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <AuthorizeView Roles="@AppRoles.Admin">
+                <Authorized Context="authState">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                               OnClick="@(() => OnEdit.InvokeAsync(context))">Edit</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2"
+                               OnClick="@(() => OnDelete.InvokeAsync(context))">Delete</MudButton>
+                </Authorized>
+            </AuthorizeView>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No products found.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 5, 10, 25, 50 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter, EditorRequired] public ProductFilterModel Filter { get; set; } = default!;
+    [Parameter] public EventCallback<string> FilterChanged { get; set; }
+    [Parameter, EditorRequired] public Func<TableState, CancellationToken, Task<TableData<ProductDto>>> ServerData { get; set; } = default!;
+    [Parameter] public EventCallback<ProductDto> OnEdit { get; set; }
+    [Parameter] public EventCallback<ProductDto> OnDelete { get; set; }
+
+    private Task<TableData<ProductDto>> LoadServerDataAsync(TableState state, CancellationToken cancellationToken)
+        => ServerData.Invoke(state, cancellationToken);
+}

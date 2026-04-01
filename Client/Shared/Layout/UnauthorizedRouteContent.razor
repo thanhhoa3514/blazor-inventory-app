@@ -1,0 +1,28 @@
+@namespace MyApp.Client.Shared.Layout
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized>
+        <MudAlert Severity="Severity.Error" Dense="true" Variant="Variant.Filled">
+            You do not have permission to access this page.
+        </MudAlert>
+    </Authorized>
+    <NotAuthorized>
+        <MudStack Spacing="2">
+            <MudAlert Severity="Severity.Warning" Dense="true" Variant="Variant.Filled">
+                Your session is required to access the inventory system.
+            </MudAlert>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NavigateToLogin">
+                Go to Login
+            </MudButton>
+        </MudStack>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private void NavigateToLogin()
+    {
+        var returnUrl = Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri));
+        Navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
+    }
+}

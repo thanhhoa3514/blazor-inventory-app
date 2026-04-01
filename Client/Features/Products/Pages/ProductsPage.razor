@@ -1,0 +1,225 @@
+@page "/products"
+@attribute [Authorize]
+@inject ProductApiClient ProductApiClient
+@inject CategoryApiClient CategoryApiClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Products</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Products</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_serverError))
+{
+    <ErrorState Message="@_serverError" Class="mb-4" />
+}
+
+<ProductForm Model="_form"
+             Categories="_categories"
+             IsSubmitting="_isSubmitting"
+             IsEditing="@_editingId.HasValue"
+             OnSubmit="SaveAsync" />
+
+<ProductTable IsLoading="_isLoading"
+              Filter="_filter"
+              FilterChanged="OnSearchChanged"
+              ServerData="LoadServerData"
+              OnEdit="StartEdit"
+              OnDelete="DeleteAsync" />
+
+@code {
+    private readonly ProductEditorModel _form = new();
+    private readonly ProductFilterModel _filter = new();
+    private readonly List<ProductDto> _items = new();
+    private readonly List<CategoryDto> _categories = new();
+
+    private int? _editingId;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string? _serverError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _serverError = null;
+        var errors = new List<string>();
+
+        try
+        {
+            var categories = await CategoryApiClient.GetAllAsync();
+            _categories.Clear();
+            _categories.AddRange(categories);
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"categories: {ex.Message}");
+        }
+
+        try
+        {
+            var products = await ProductApiClient.GetAllAsync();
+            _items.Clear();
+            _items.AddRange(products);
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"products: {ex.Message}");
+        }
+
+        if (errors.Count > 0)
+        {
+            _serverError = $"Failed to load data ({string.Join(" | ", errors)})";
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        _isSubmitting = true;
+        _serverError = null;
+
+        try
+        {
+            var result = _editingId.HasValue
+                ? await ProductApiClient.UpdateAsync(_editingId.Value, _form.ToUpdateRequest())
+                : await ProductApiClient.CreateAsync(_form.ToCreateRequest());
+
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add(_editingId.HasValue ? "Product updated." : "Product created.", Severity.Success);
+            ResetForm();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void StartEdit(ProductDto item)
+    {
+        _editingId = item.Id;
+        _form.Load(item);
+    }
+
+    private async Task DeleteAsync(ProductDto item)
+    {
+        _serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Delete Product",
+            content: $"Delete product '{item.Sku} - {item.Name}'? This action cannot be undone.",
+            buttonText: "Delete",
+            color: Color.Error);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await ProductApiClient.DeleteAsync(item.Id);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            if (_editingId == item.Id)
+            {
+                ResetForm();
+            }
+
+            Snackbar.Add("Product deleted.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Delete failed: {ex.Message}";
+        }
+    }
+
+    private Task<TableData<ProductDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        IEnumerable<ProductDto> query = _items;
+
+        if (!string.IsNullOrWhiteSpace(_filter.SearchTerm))
+        {
+            var keyword = _filter.SearchTerm.Trim();
+            query = query.Where(x =>
+                x.Sku.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                x.CategoryName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = state.SortLabel switch
+        {
+            "sku" => ApplySort(query, state.SortDirection, x => x.Sku),
+            "name" => ApplySort(query, state.SortDirection, x => x.Name),
+            "category" => ApplySort(query, state.SortDirection, x => x.CategoryName),
+            "onhand" => ApplySort(query, state.SortDirection, x => x.OnHandQty),
+            "avgcost" => ApplySort(query, state.SortDirection, x => x.AverageCost),
+            "reorder" => ApplySort(query, state.SortDirection, x => x.ReorderLevel),
+            _ => query.OrderBy(x => x.Name)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return Task.FromResult(new TableData<ProductDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        });
+    }
+
+    private static IEnumerable<ProductDto> ApplySort<TKey>(IEnumerable<ProductDto> query, SortDirection direction, Func<ProductDto, TKey> keySelector)
+        => direction == SortDirection.Descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
+
+    private Task OnSearchChanged(string value)
+    {
+        _filter.SearchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
+    private void ResetForm()
+    {
+        _editingId = null;
+        _form.Reset();
+    }
+}

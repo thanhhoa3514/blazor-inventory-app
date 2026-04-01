@@ -1,0 +1,204 @@
+@page "/categories"
+@attribute [Authorize]
+@inject CategoryApiClient CategoryApiClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Categories</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Categories</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_serverError))
+{
+    <ErrorState Message="@_serverError" Class="mb-4" />
+}
+
+<CategoryForm Model="_form" IsSubmitting="_isSubmitting" IsEditing="@_editingId.HasValue" OnSubmit="SaveAsync" />
+<CategoryTable IsLoading="_isLoading"
+               SearchTerm="_searchTerm"
+               SearchTermChanged="OnSearchChanged"
+               ServerData="LoadServerData"
+               OnEdit="StartEdit"
+               OnDelete="DeleteAsync" />
+
+@code {
+    private readonly CreateCategoryRequest _form = new();
+    private readonly List<CategoryDto> _items = new();
+    private int? _editingId;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string? _serverError;
+    private string _searchTerm = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _serverError = null;
+
+        try
+        {
+            var result = await CategoryApiClient.GetAllAsync();
+            _items.Clear();
+            _items.AddRange(result);
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Failed to load categories: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _isSubmitting = true;
+        _serverError = null;
+
+        try
+        {
+            var result = _editingId.HasValue
+                ? await CategoryApiClient.UpdateAsync(_editingId.Value, new UpdateCategoryRequest
+                {
+                    Name = _form.Name,
+                    Description = _form.Description
+                })
+                : await CategoryApiClient.CreateAsync(_form);
+
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add(_editingId.HasValue ? "Category updated." : "Category created.", Severity.Success);
+            ResetForm();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void StartEdit(CategoryDto item)
+    {
+        _editingId = item.Id;
+        _form.Name = item.Name;
+        _form.Description = item.Description;
+    }
+
+    private async Task DeleteAsync(CategoryDto item)
+    {
+        _serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Delete Category",
+            content: $"Delete '{item.Name}'? This action cannot be undone.",
+            buttonText: "Delete",
+            color: Color.Error);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await CategoryApiClient.DeleteAsync(item.Id);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            if (_editingId == item.Id)
+            {
+                ResetForm();
+            }
+
+            Snackbar.Add("Category deleted.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Delete failed: {ex.Message}";
+        }
+    }
+
+    private Task<TableData<CategoryDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        IEnumerable<CategoryDto> query = _items;
+
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            var keyword = _searchTerm.Trim();
+            query = query.Where(x =>
+                x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(x.Description) && x.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        query = state.SortLabel switch
+        {
+            "name" => state.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(x => x.Name)
+                : query.OrderBy(x => x.Name),
+            "created" => state.SortDirection == SortDirection.Descending
+                ? query.OrderByDescending(x => x.CreatedAtUtc)
+                : query.OrderBy(x => x.CreatedAtUtc),
+            _ => query.OrderBy(x => x.Name)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return Task.FromResult(new TableData<CategoryDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        });
+    }
+
+    private Task OnSearchChanged(string value)
+    {
+        _searchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
+    private void ResetForm()
+    {
+        _editingId = null;
+        _form.Name = string.Empty;
+        _form.Description = string.Empty;
+    }
+}

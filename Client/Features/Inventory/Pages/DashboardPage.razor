@@ -1,0 +1,47 @@
+@page "/"
+@attribute [Authorize]
+@inject InventoryApiClient InventoryApiClient
+
+<PageTitle>Inventory Dashboard</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Inventory Dashboard</MudText>
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading dashboard..." />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" />
+}
+else if (_summary is null)
+{
+    <ErrorState Message="No inventory data found." Severity="Severity.Warning" />
+}
+else
+{
+    <InventorySummaryCards Summary="_summary" />
+    <LowStockTable Items="_summary.LowStockItems" />
+}
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private InventorySummaryDto? _summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _summary = await InventoryApiClient.GetSummaryAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load dashboard: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

@@ -1,0 +1,76 @@
+@page "/issues/{Id:int}"
+@attribute [Authorize]
+@inject IssueApiClient IssueApiClient
+
+<PageTitle>Issue Detail</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Issue Detail</MudText>
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading issue..." />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" />
+}
+else if (_item is null)
+{
+    <ErrorState Message="Issue not found." Severity="Severity.Warning" />
+}
+else
+{
+    <MudPaper Elevation="1" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="6"><MudText><b>Document:</b> @_item.DocumentNo</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Date:</b> @_item.IssuedAtUtc.ToLocalTime().ToString("g")</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Customer:</b> @_item.Customer</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Total:</b> @_item.TotalAmount.ToString("C")</MudText></MudItem>
+            <MudItem xs="12"><MudText><b>Note:</b> @_item.Note</MudText></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable T="StockIssueDetailLineDto" Items="_item.Lines" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>SKU</MudTh>
+            <MudTh>Product</MudTh>
+            <MudTh>Qty</MudTh>
+            <MudTh>Unit Cost</MudTh>
+            <MudTh>Line Total</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ProductSku</MudTd>
+            <MudTd>@context.ProductName</MudTd>
+            <MudTd>@context.Quantity</MudTd>
+            <MudTd>@context.UnitCost.ToString("C")</MudTd>
+            <MudTd>@context.LineTotal.ToString("C")</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _isLoading = true;
+    private string? _error;
+    private StockIssueDetailDto? _item;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _item = await IssueApiClient.GetByIdAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load issue: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

@@ -1,0 +1,11 @@
+@namespace MyApp.Client.Shared.Components
+
+<MudAlert Severity="@Severity" Variant="Variant.Filled" Dense="true" Class="@Class">
+    @Message
+</MudAlert>
+
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public Severity Severity { get; set; } = Severity.Error;
+    [Parameter] public string? Class { get; set; }
+}
