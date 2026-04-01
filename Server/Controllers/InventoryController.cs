@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MyApp.Server.Auth;
-using MyApp.Server.Data;
+using MyApp.Server.Persistence.Repositories;
 using MyApp.Shared.Contracts;
 
 namespace MyApp.Server.Controllers;
@@ -12,28 +11,26 @@ namespace MyApp.Server.Controllers;
 [Authorize(Policy = AppPolicies.ReadAccess)]
 public class InventoryController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly IProductRepository _products;
 
-    public InventoryController(AppDbContext db)
+    public InventoryController(IProductRepository products)
     {
-        _db = db;
+        _products = products;
     }
 
     [HttpGet("summary")]
     public async Task<ActionResult<InventorySummaryDto>> GetSummary(CancellationToken cancellationToken)
     {
-        var products = await _db.Products.AsNoTracking()
-            .Include(x => x.Category)
-            .Where(x => x.IsActive)
-            .ToListAsync(cancellationToken);
+        var all = await _products.GetAllAsync(cancellationToken);
+        var active = all.Where(x => x.IsActive).ToList();
 
         var summary = new InventorySummaryDto
         {
-            TotalProducts = products.Count,
-            TotalOnHandUnits = products.Sum(x => x.OnHandQty),
-            TotalInventoryValue = products.Sum(x => Math.Round(x.OnHandQty * x.AverageCost, 2, MidpointRounding.AwayFromZero)),
-            LowStockCount = products.Count(x => x.OnHandQty <= x.ReorderLevel),
-            LowStockItems = products
+            TotalProducts = active.Count,
+            TotalOnHandUnits = active.Sum(x => x.OnHandQty),
+            TotalInventoryValue = active.Sum(x => Math.Round(x.OnHandQty * x.AverageCost, 2, MidpointRounding.AwayFromZero)),
+            LowStockCount = active.Count(x => x.OnHandQty <= x.ReorderLevel),
+            LowStockItems = active
                 .Where(x => x.OnHandQty <= x.ReorderLevel)
                 .OrderBy(x => x.OnHandQty)
                 .ThenBy(x => x.Name)
@@ -43,7 +40,7 @@ public class InventoryController : ControllerBase
                     x.Name,
                     x.OnHandQty,
                     x.ReorderLevel,
-                    x.Category?.Name ?? "Uncategorized"))
+                    x.CategoryName))
                 .ToList()
         };
 

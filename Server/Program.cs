@@ -1,8 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MyApp.Server.Application.Categories.Commands;
+using MyApp.Server.Application.Categories.Queries;
+using MyApp.Server.Application.Inventory.Commands;
+using MyApp.Server.Application.Products.Commands;
+using MyApp.Server.Application.Products.Queries;
 using MyApp.Server.Auth;
 using MyApp.Server.Data;
-using MyApp.Server.Services;
+using MyApp.Server.Persistence.Repositories;
 using MyApp.Shared.Security;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -68,7 +73,33 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.Configure<AuthSeedOptions>(builder.Configuration.GetSection("Auth:Seed"));
-builder.Services.AddScoped<IInventoryService, InventoryService>();
+
+// Repositories
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IStockReceiptRepository, StockReceiptRepository>();
+builder.Services.AddScoped<IStockIssueRepository, StockIssueRepository>();
+builder.Services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
+builder.Services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();
+
+// Category use cases
+builder.Services.AddScoped<GetAllCategoriesQuery>();
+builder.Services.AddScoped<GetCategoryByIdQuery>();
+builder.Services.AddScoped<CreateCategoryCommand>();
+builder.Services.AddScoped<UpdateCategoryCommand>();
+builder.Services.AddScoped<DeleteCategoryCommand>();
+
+// Product use cases
+builder.Services.AddScoped<GetAllProductsQuery>();
+builder.Services.AddScoped<GetProductByIdQuery>();
+builder.Services.AddScoped<CreateProductCommand>();
+builder.Services.AddScoped<UpdateProductCommand>();
+builder.Services.AddScoped<DeleteProductCommand>();
+
+// Inventory commands
+builder.Services.AddScoped<CreateReceiptCommand>();
+builder.Services.AddScoped<CreateIssueCommand>();
+builder.Services.AddScoped<CreateAdjustmentCommand>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();

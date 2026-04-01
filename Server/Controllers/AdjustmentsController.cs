@@ -9,25 +9,25 @@ using MyApp.Shared.Contracts;
 namespace MyApp.Server.Controllers;
 
 [ApiController]
-[Route("api/issues")]
+[Route("api/adjustments")]
 [Authorize(Policy = AppPolicies.ReadAccess)]
-public class IssuesController : ControllerBase
+public class AdjustmentsController : ControllerBase
 {
-    private readonly IStockIssueRepository _repo;
-    private readonly CreateIssueCommand _create;
+    private readonly IStockAdjustmentRepository _repo;
+    private readonly CreateAdjustmentCommand _create;
 
-    public IssuesController(IStockIssueRepository repo, CreateIssueCommand create)
+    public AdjustmentsController(IStockAdjustmentRepository repo, CreateAdjustmentCommand create)
     {
         _repo = repo;
         _create = create;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<StockIssueListDto>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<StockAdjustmentListDto>>> GetAll(CancellationToken cancellationToken)
         => Ok(await _repo.GetAllAsync(cancellationToken));
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<StockIssueDetailDto>> GetById(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<StockAdjustmentDetailDto>> GetById(int id, CancellationToken cancellationToken)
     {
         var item = await _repo.GetByIdAsync(id, cancellationToken);
         return item is null ? NotFound() : Ok(item);
@@ -35,7 +35,7 @@ public class IssuesController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = AppPolicies.WarehouseOperations)]
-    public async Task<ActionResult<StockIssueDetailDto>> Create(CreateStockIssueRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<StockAdjustmentDetailDto>> Create(CreateStockAdjustmentRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
@@ -43,8 +43,8 @@ public class IssuesController : ControllerBase
         var result = await _create.ExecuteAsync(request, cancellationToken);
         return result switch
         {
-            AppResult<StockIssueDetailDto>.Ok ok => CreatedAtAction(nameof(GetById), new { id = ok.Value.Id }, ok.Value),
-            AppResult<StockIssueDetailDto>.ValidationError err => BadRequest(err.Message),
+            AppResult<StockAdjustmentDetailDto>.Ok ok => CreatedAtAction(nameof(GetById), new { id = ok.Value.Id }, ok.Value),
+            AppResult<StockAdjustmentDetailDto>.ValidationError err => BadRequest(err.Message),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }
