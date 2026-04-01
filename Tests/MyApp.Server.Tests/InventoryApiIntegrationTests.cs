@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using MyApp.Server.Data;
 using MyApp.Shared.Contracts;
 using Xunit;
 
@@ -112,6 +115,158 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
             [
                 new CreateStockIssueLineRequest { ProductId = 1, Quantity = 1 }
             ]
+        });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_AsWarehouseStaff_UpdatesProductAndWritesLedger()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "staff", StaffPassword);
+
+        var startingProduct = await client.GetFromJsonAsync<ProductDto>("/api/products/1");
+        Assert.NotNull(startingProduct);
+
+        var response = await client.PostAsJsonAsync("/api/adjustments", new
+        {
+            reason = "Cycle count correction",
+            note = "Found extra units during count",
+            lines = new[]
+            {
+                new
+                {
+                    productId = 1,
+                    direction = "increase",
+                    quantity = 4
+                }
+            }
+        });
+
+        response.EnsureSuccessStatusCode();
+
+        var product = await client.GetFromJsonAsync<ProductDto>("/api/products/1");
+        Assert.NotNull(product);
+        Assert.Equal(startingProduct!.OnHandQty + 4, product!.OnHandQty);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ledger = await db.InventoryLedgerEntries.AsNoTracking()
+            .Where(x => x.ProductId == 1)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync();
+        var adjustment = await db.StockAdjustments.AsNoTracking()
+            .Include(x => x.Lines)
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync();
+
+        Assert.NotNull(ledger);
+        Assert.Equal("ADJUSTMENT", ledger!.MovementType);
+        Assert.Equal(4, ledger.QuantityChange);
+        Assert.Equal(startingProduct.OnHandQty + 4, ledger.RunningOnHandQty);
+
+        Assert.NotNull(adjustment);
+        Assert.Equal("Cycle count correction", adjustment!.Reason);
+        Assert.Single(adjustment.Lines);
+        Assert.Equal("increase", adjustment.Lines[0].Direction);
+        Assert.Equal(4, adjustment.Lines[0].Quantity);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_WithInsufficientStock_ReturnsBadRequest()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "staff", StaffPassword);
+
+        var response = await client.PostAsJsonAsync("/api/adjustments", new
+        {
+            reason = "Damaged goods",
+            lines = new[]
+            {
+                new
+                {
+                    productId = 1,
+                    direction = "decrease",
+                    quantity = 999
+                }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_Decrease_AsWarehouseStaff_ReducesProduct()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "staff", StaffPassword);
+
+        var startingProduct = await client.GetFromJsonAsync<ProductDto>("/api/products/1");
+        Assert.NotNull(startingProduct);
+
+        var response = await client.PostAsJsonAsync("/api/adjustments", new
+        {
+            reason = "Damaged goods",
+            lines = new[]
+            {
+                new
+                {
+                    productId = 1,
+                    direction = "decrease",
+                    quantity = 2
+                }
+            }
+        });
+
+        response.EnsureSuccessStatusCode();
+
+        var product = await client.GetFromJsonAsync<ProductDto>("/api/products/1");
+        Assert.NotNull(product);
+        Assert.Equal(startingProduct!.OnHandQty - 2, product!.OnHandQty);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_WithoutReason_ReturnsBadRequest()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "staff", StaffPassword);
+
+        var response = await client.PostAsJsonAsync("/api/adjustments", new
+        {
+            reason = "",
+            lines = new[]
+            {
+                new
+                {
+                    productId = 1,
+                    direction = "increase",
+                    quantity = 1
+                }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateAdjustment_AsViewer_ReturnsForbidden()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "viewer", ViewerPassword);
+
+        var response = await client.PostAsJsonAsync("/api/adjustments", new
+        {
+            reason = "Viewer attempt",
+            lines = new[]
+            {
+                new
+                {
+                    productId = 1,
+                    direction = "increase",
+                    quantity = 1
+                }
+            }
         });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

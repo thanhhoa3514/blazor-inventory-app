@@ -33,5 +33,6 @@ public class Product
 
     public List<StockReceiptLine> ReceiptLines { get; set; } = new();
     public List<StockIssueLine> IssueLines { get; set; } = new();
+    public List<StockAdjustmentLine> AdjustmentLines { get; set; } = new();
     public List<InventoryLedgerEntry> LedgerEntries { get; set; } = new();
 }

@@ -1,0 +1,356 @@
+@page "/adjustments"
+@attribute [Authorize]
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Stock Adjustments</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Inventory - Stock Adjustments</MudText>
+
+@if (!string.IsNullOrWhiteSpace(serverError))
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mb-4">
+        @serverError
+    </MudAlert>
+}
+
+<AuthorizeView Roles="@AppRoles.AdminOrWarehouseStaff">
+    <Authorized>
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Adjustment</MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Reason" Variant="Variant.Outlined" Required="true" @bind-Value="newAdjustment.Reason" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Note" Variant="Variant.Outlined" @bind-Value="newAdjustment.Note" />
+                </MudItem>
+
+                <MudItem xs="12" md="5">
+                    <MudSelect T="int" Label="Product" Variant="Variant.Outlined" @bind-Value="lineProductId">
+                        <MudSelectItem T="int" Value="0">Select product</MudSelectItem>
+                        @foreach (var product in products)
+                        {
+                            <MudSelectItem T="int" Value="@product.Id">@($"{product.Sku} - {product.Name} (On hand: {product.OnHandQty})")</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Direction" Variant="Variant.Outlined" @bind-Value="lineDirection">
+                        <MudSelectItem T="string" Value="@StockAdjustmentDirections.Increase">Increase</MudSelectItem>
+                        <MudSelectItem T="string" Value="@StockAdjustmentDirections.Decrease">Decrease</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="2">
+                    <MudNumericField T="int" Label="Qty" Min="1" Variant="Variant.Outlined" @bind-Value="lineQuantity" />
+                </MudItem>
+                <MudItem xs="12" md="2" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AddLine">Add Line</MudButton>
+                </MudItem>
+            </MudGrid>
+
+            @if (newAdjustment.Lines.Count > 0)
+            {
+                <MudTable T="CreateStockAdjustmentLineRequest" Items="newAdjustment.Lines" Hover="true" Dense="true" Class="mt-4">
+                    <HeaderContent>
+                        <MudTh>Product</MudTh>
+                        <MudTh>Direction</MudTh>
+                        <MudTh>Qty</MudTh>
+                        <MudTh Class="text-right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="line">
+                        <MudTd>@GetProductName(line.ProductId)</MudTd>
+                        <MudTd>@GetDirectionLabel(line.Direction)</MudTd>
+                        <MudTd>@GetSignedQuantity(line)</MudTd>
+                        <MudTd Class="text-right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveLine(line))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-3">
+                    <MudText Typo="Typo.subtitle1">Net Qty Change: @NetQuantityChange</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@isSubmitting" OnClick="SubmitAsync">
+                        @(isSubmitting ? "Submitting..." : "Submit Adjustment")
+                    </MudButton>
+                </MudStack>
+            }
+        </MudPaper>
+    </Authorized>
+</AuthorizeView>
+
+<MudTable T="StockAdjustmentListDto" @ref="table" ServerData="LoadServerData" Hover="true" Dense="true" Loading="@isLoading">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Adjustment History</MudText>
+        <MudSpacer />
+        <MudTextField T="string"
+                      Label="Search"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Value="@searchTerm"
+                      ValueChanged="OnSearchChanged" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="doc">Doc No</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="date">Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="reason">Reason</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="total">Net Value</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="StockAdjustmentListDto" SortLabel="lines">Lines</MudTableSortLabel></MudTh>
+        <MudTh Class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Doc No">@context.DocumentNo</MudTd>
+        <MudTd DataLabel="Date">@context.AdjustedAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Reason">@context.Reason</MudTd>
+        <MudTd DataLabel="Net Value">@context.TotalAmount.ToString("C")</MudTd>
+        <MudTd DataLabel="Lines">@context.LineCount</MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" Href="@($"/adjustments/{context.Id}")">Detail</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No adjustments found.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 5, 10, 25, 50 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<StockAdjustmentListDto>? table;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private string? serverError;
+    private string searchTerm = string.Empty;
+
+    private int lineProductId;
+    private string lineDirection = StockAdjustmentDirections.Increase;
+    private int lineQuantity = 1;
+
+    private readonly CreateStockAdjustmentRequest newAdjustment = new();
+    private readonly List<StockAdjustmentListDto> adjustments = new();
+    private readonly List<ProductDto> products = new();
+
+    private int NetQuantityChange => newAdjustment.Lines.Sum(GetSignedQuantity);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        serverError = null;
+
+        try
+        {
+            var adjustmentResult = await Http.GetFromJsonAsync<List<StockAdjustmentListDto>>("api/adjustments");
+            var productResult = await Http.GetFromJsonAsync<List<ProductDto>>("api/products");
+
+            adjustments.Clear();
+            products.Clear();
+
+            if (adjustmentResult is not null)
+            {
+                adjustments.AddRange(adjustmentResult);
+            }
+
+            if (productResult is not null)
+            {
+                products.AddRange(productResult.Where(x => x.IsActive));
+            }
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            if (table is not null)
+            {
+                await table.ReloadServerData();
+            }
+        }
+    }
+
+    private void AddLine()
+    {
+        if (string.IsNullOrWhiteSpace(newAdjustment.Reason))
+        {
+            serverError = "Reason is required before adding lines.";
+            return;
+        }
+
+        if (lineProductId <= 0 || lineQuantity <= 0 || !IsValidDirection(lineDirection))
+        {
+            serverError = "Please select a product, direction, and valid quantity.";
+            return;
+        }
+
+        newAdjustment.Lines.Add(new CreateStockAdjustmentLineRequest
+        {
+            ProductId = lineProductId,
+            Direction = lineDirection,
+            Quantity = lineQuantity
+        });
+
+        lineProductId = 0;
+        lineDirection = StockAdjustmentDirections.Increase;
+        lineQuantity = 1;
+        serverError = null;
+    }
+
+    private void RemoveLine(CreateStockAdjustmentLineRequest line)
+    {
+        newAdjustment.Lines.Remove(line);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newAdjustment.Reason))
+        {
+            serverError = "Reason is required.";
+            return;
+        }
+
+        if (newAdjustment.Lines.Count == 0)
+        {
+            serverError = "Add at least one line before submitting.";
+            return;
+        }
+
+        var confirmed = await ConfirmAsync(
+            title: "Submit Adjustment",
+            content: $"Submit adjustment with {newAdjustment.Lines.Count} line(s) for reason '{newAdjustment.Reason}'?",
+            buttonText: "Submit",
+            color: Color.Primary);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        isSubmitting = true;
+        serverError = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/adjustments", newAdjustment);
+            if (!response.IsSuccessStatusCode)
+            {
+                serverError = NormalizeServerError(await response.Content.ReadAsStringAsync());
+                return;
+            }
+
+            newAdjustment.Reason = string.Empty;
+            newAdjustment.Note = null;
+            newAdjustment.Lines.Clear();
+            lineDirection = StockAdjustmentDirections.Increase;
+
+            Snackbar.Add("Adjustment submitted successfully.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            serverError = $"Submit failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task<TableData<StockAdjustmentListDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        await Task.Yield();
+
+        IEnumerable<StockAdjustmentListDto> query = adjustments;
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var keyword = searchTerm.Trim();
+            query = query.Where(x =>
+                x.DocumentNo.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                x.Reason.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        query = state.SortLabel switch
+        {
+            "doc" => ApplySort(query, state.SortDirection, x => x.DocumentNo),
+            "date" => ApplySort(query, state.SortDirection, x => x.AdjustedAtUtc),
+            "reason" => ApplySort(query, state.SortDirection, x => x.Reason),
+            "total" => ApplySort(query, state.SortDirection, x => x.TotalAmount),
+            "lines" => ApplySort(query, state.SortDirection, x => x.LineCount),
+            _ => query.OrderByDescending(x => x.AdjustedAtUtc)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return new TableData<StockAdjustmentListDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        };
+    }
+
+    private static IEnumerable<StockAdjustmentListDto> ApplySort<TKey>(IEnumerable<StockAdjustmentListDto> query, SortDirection direction, Func<StockAdjustmentListDto, TKey> keySelector)
+        => direction == SortDirection.Descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchTerm = value;
+        if (table is not null)
+        {
+            await table.ReloadServerData();
+        }
+    }
+
+    private string GetProductName(int productId)
+    {
+        var product = products.FirstOrDefault(x => x.Id == productId);
+        return product is null ? $"Product #{productId}" : $"{product.Sku} - {product.Name}";
+    }
+
+    private static bool IsValidDirection(string? direction)
+        => string.Equals(direction, StockAdjustmentDirections.Increase, StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(direction, StockAdjustmentDirections.Decrease, StringComparison.OrdinalIgnoreCase);
+
+    private static int GetSignedQuantity(CreateStockAdjustmentLineRequest line)
+        => string.Equals(line.Direction, StockAdjustmentDirections.Decrease, StringComparison.OrdinalIgnoreCase)
+            ? -line.Quantity
+            : line.Quantity;
+
+    private static string GetDirectionLabel(string direction)
+        => string.Equals(direction, StockAdjustmentDirections.Decrease, StringComparison.OrdinalIgnoreCase) ? "Decrease" : "Increase";
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
+    private static string NormalizeServerError(string raw)
+        => string.IsNullOrWhiteSpace(raw) ? "Request failed." : raw.Trim().Trim('"');
+}

@@ -17,6 +17,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StockReceiptLine> StockReceiptLines => Set<StockReceiptLine>();
     public DbSet<StockIssue> StockIssues => Set<StockIssue>();
     public DbSet<StockIssueLine> StockIssueLines => Set<StockIssueLine>();
+    public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+    public DbSet<StockAdjustmentLine> StockAdjustmentLines => Set<StockAdjustmentLine>();
     public DbSet<InventoryLedgerEntry> InventoryLedgerEntries => Set<InventoryLedgerEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -114,6 +116,37 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Product)
                 .WithMany(x => x.IssueLines)
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StockAdjustment>(entity =>
+        {
+            entity.ToTable("StockAdjustments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DocumentNo).IsRequired().HasMaxLength(50);
+            entity.HasIndex(x => x.DocumentNo).IsUnique();
+            entity.Property(x => x.Reason).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Note).HasMaxLength(500);
+            entity.Property(x => x.TotalAmount).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<StockAdjustmentLine>(entity =>
+        {
+            entity.ToTable("StockAdjustmentLines", table =>
+            {
+                table.HasCheckConstraint("CK_StockAdjustmentLines_Quantity_Positive", "[Quantity] > 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Direction).IsRequired().HasMaxLength(20);
+            entity.Property(x => x.UnitCost).HasPrecision(18, 2);
+            entity.Property(x => x.LineTotal).HasPrecision(18, 2);
+            entity.HasOne(x => x.StockAdjustment)
+                .WithMany(x => x.Lines)
+                .HasForeignKey(x => x.StockAdjustmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product)
+                .WithMany(x => x.AdjustmentLines)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
