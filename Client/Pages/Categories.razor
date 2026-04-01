@@ -1,4 +1,5 @@
 @page "/categories"
+@attribute [Authorize]
 @using MudBlazor
 @inject HttpClient Http
 @inject ISnackbar Snackbar
@@ -15,23 +16,27 @@
     </MudAlert>
 }
 
-<MudPaper Elevation="1" Class="pa-4 mb-4">
-    <MudForm @ref="formRef" Model="@form">
-        <MudGrid>
-            <MudItem xs="12" md="4">
-                <MudTextField T="string" Label="Name" Variant="Variant.Outlined" @bind-Value="form.Name" For="@(() => form.Name)" Required="true" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudTextField T="string" Label="Description" Variant="Variant.Outlined" @bind-Value="form.Description" For="@(() => form.Description)" />
-            </MudItem>
-            <MudItem xs="12" md="2" Class="d-flex align-end">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@isSubmitting" OnClick="SaveAsync">
-                    @(isSubmitting ? "Saving..." : (editingId.HasValue ? "Update" : "Create"))
-                </MudButton>
-            </MudItem>
-        </MudGrid>
-    </MudForm>
-</MudPaper>
+<AuthorizeView Roles="@AppRoles.Admin">
+    <Authorized>
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudForm @ref="formRef" Model="@form">
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string" Label="Name" Variant="Variant.Outlined" @bind-Value="form.Name" For="@(() => form.Name)" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" Label="Description" Variant="Variant.Outlined" @bind-Value="form.Description" For="@(() => form.Description)" />
+                    </MudItem>
+                    <MudItem xs="12" md="2" Class="d-flex align-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@isSubmitting" OnClick="SaveAsync">
+                            @(isSubmitting ? "Saving..." : (editingId.HasValue ? "Update" : "Create"))
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </MudPaper>
+    </Authorized>
+</AuthorizeView>
 
 <MudTable T="CategoryDto" @ref="table" ServerData="LoadServerData" Hover="true" Dense="true" Loading="@isLoading">
     <ToolBarContent>
@@ -57,8 +62,12 @@
         <MudTd DataLabel="Description">@context.Description</MudTd>
         <MudTd DataLabel="Created">@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
         <MudTd DataLabel="Actions" Class="text-right">
-            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => StartEdit(context))">Edit</MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2" OnClick="@(() => DeleteAsync(context))">Delete</MudButton>
+            <AuthorizeView Roles="@AppRoles.Admin">
+                <Authorized Context="authState">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => StartEdit(context))">Edit</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2" OnClick="@(() => DeleteAsync(context))">Delete</MudButton>
+                </Authorized>
+            </AuthorizeView>
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>

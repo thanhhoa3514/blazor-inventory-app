@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyApp.Server.Auth;
 using MyApp.Server.Data;
 using MyApp.Shared.Contracts;
 
@@ -7,6 +9,7 @@ namespace MyApp.Server.Controllers;
 
 [ApiController]
 [Route("api/inventory")]
+[Authorize(Policy = AppPolicies.ReadAccess)]
 public class InventoryController : ControllerBase
 {
     private readonly AppDbContext _db;

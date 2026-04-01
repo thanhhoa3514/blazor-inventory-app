@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyApp.Server.Auth;
 using MyApp.Server.Data;
 using MyApp.Shared.Contracts;
 using MyApp.Shared.Domain;
@@ -8,6 +10,7 @@ namespace MyApp.Server.Controllers;
 
 [ApiController]
 [Route("api/products")]
+[Authorize(Policy = AppPolicies.ReadAccess)]
 public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -70,6 +73,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
     public async Task<ActionResult<ProductDto>> Create(CreateProductRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -110,6 +114,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
     public async Task<ActionResult<ProductDto>> Update(int id, UpdateProductRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -149,6 +154,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var entity = await _db.Products.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

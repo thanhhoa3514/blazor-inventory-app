@@ -1,0 +1,99 @@
+@page "/login"
+@inject NavigationManager Navigation
+@inject ServerAuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+
+<PageTitle>Login</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Elevation="2" Class="pa-6">
+        <MudText Typo="Typo.h4" Class="mb-2">Inventory Login</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">Sign in with your assigned role account.</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(serverError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Variant="Variant.Filled" Class="mb-4">
+                @serverError
+            </MudAlert>
+        }
+
+        <MudForm @ref="formRef" Model="@request">
+            <MudTextField T="string"
+                          Label="Username or Email"
+                          Variant="Variant.Outlined"
+                          @bind-Value="request.UserNameOrEmail"
+                          For="@(() => request.UserNameOrEmail)"
+                          Required="true"
+                          Class="mb-3" />
+            <MudTextField T="string"
+                          Label="Password"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          @bind-Value="request.Password"
+                          For="@(() => request.Password)"
+                          Required="true"
+                          Class="mb-4" />
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="@isSubmitting"
+                       OnClick="SubmitAsync">
+                @(isSubmitting ? "Signing in..." : "Sign In")
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private readonly LoginRequest request = new();
+    private MudForm? formRef;
+    private string? serverError;
+    private bool isSubmitting;
+
+    private async Task SubmitAsync()
+    {
+        if (formRef is null)
+        {
+            return;
+        }
+
+        await formRef.Validate();
+        if (!formRef.IsValid)
+        {
+            return;
+        }
+
+        isSubmitting = true;
+        serverError = null;
+
+        try
+        {
+            var result = await AuthStateProvider.SignInAsync(request);
+            if (!result.Success)
+            {
+                serverError = result.Error;
+                return;
+            }
+
+            Snackbar.Add("Login successful.", Severity.Success);
+            Navigation.NavigateTo(GetReturnUrl(), forceLoad: false);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private string GetReturnUrl()
+    {
+        if (string.IsNullOrWhiteSpace(ReturnUrl))
+        {
+            return "/";
+        }
+
+        return ReturnUrl.StartsWith('/') ? ReturnUrl : "/";
+    }
+}

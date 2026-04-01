@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyApp.Server.Auth;
 using MyApp.Server.Data;
 using MyApp.Shared.Contracts;
 using MyApp.Shared.Domain;
@@ -8,6 +10,7 @@ namespace MyApp.Server.Controllers;
 
 [ApiController]
 [Route("api/categories")]
+[Authorize(Policy = AppPolicies.ReadAccess)]
 public class CategoriesController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -44,6 +47,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
     public async Task<ActionResult<CategoryDto>> Create(CreateCategoryRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -71,6 +75,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
     public async Task<ActionResult<CategoryDto>> Update(int id, UpdateCategoryRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -99,6 +104,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var entity = await _db.Categories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

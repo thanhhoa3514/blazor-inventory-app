@@ -1,4 +1,5 @@
 @page "/issues"
+@attribute [Authorize]
 @using MudBlazor
 @inject HttpClient Http
 @inject ISnackbar Snackbar
@@ -15,58 +16,62 @@
     </MudAlert>
 }
 
-<MudPaper Elevation="1" Class="pa-4 mb-4">
-    <MudText Typo="Typo.h6" Class="mb-3">Create Issue</MudText>
+<AuthorizeView Roles="@AppRoles.AdminOrWarehouseStaff">
+    <Authorized>
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Issue</MudText>
 
-    <MudGrid>
-        <MudItem xs="12" md="4">
-            <MudTextField T="string" Label="Customer" Variant="Variant.Outlined" @bind-Value="newIssue.Customer" />
-        </MudItem>
-        <MudItem xs="12" md="8">
-            <MudTextField T="string" Label="Note" Variant="Variant.Outlined" @bind-Value="newIssue.Note" />
-        </MudItem>
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string" Label="Customer" Variant="Variant.Outlined" @bind-Value="newIssue.Customer" />
+                </MudItem>
+                <MudItem xs="12" md="8">
+                    <MudTextField T="string" Label="Note" Variant="Variant.Outlined" @bind-Value="newIssue.Note" />
+                </MudItem>
 
-        <MudItem xs="12" md="7">
-            <MudSelect T="int" Label="Product" Variant="Variant.Outlined" @bind-Value="lineProductId">
-                <MudSelectItem T="int" Value="0">Select product</MudSelectItem>
-                @foreach (var product in products)
-                {
-                    <MudSelectItem T="int" Value="@product.Id">@($"{product.Sku} - {product.Name} (On hand: {product.OnHandQty})")</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="6" md="2">
-            <MudNumericField T="int" Label="Qty" Min="1" Variant="Variant.Outlined" @bind-Value="lineQuantity" />
-        </MudItem>
-        <MudItem xs="12" md="3" Class="d-flex align-end">
-            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AddLine">Add Line</MudButton>
-        </MudItem>
-    </MudGrid>
+                <MudItem xs="12" md="7">
+                    <MudSelect T="int" Label="Product" Variant="Variant.Outlined" @bind-Value="lineProductId">
+                        <MudSelectItem T="int" Value="0">Select product</MudSelectItem>
+                        @foreach (var product in products)
+                        {
+                            <MudSelectItem T="int" Value="@product.Id">@($"{product.Sku} - {product.Name} (On hand: {product.OnHandQty})")</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" md="2">
+                    <MudNumericField T="int" Label="Qty" Min="1" Variant="Variant.Outlined" @bind-Value="lineQuantity" />
+                </MudItem>
+                <MudItem xs="12" md="3" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AddLine">Add Line</MudButton>
+                </MudItem>
+            </MudGrid>
 
-    @if (newIssue.Lines.Count > 0)
-    {
-        <MudTable T="CreateStockIssueLineRequest" Items="newIssue.Lines" Hover="true" Dense="true" Class="mt-4">
-            <HeaderContent>
-                <MudTh>Product</MudTh>
-                <MudTh>Qty</MudTh>
-                <MudTh Class="text-right">Actions</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@GetProductName(context.ProductId)</MudTd>
-                <MudTd>@context.Quantity</MudTd>
-                <MudTd Class="text-right">
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveLine(context))" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
+            @if (newIssue.Lines.Count > 0)
+            {
+                <MudTable T="CreateStockIssueLineRequest" Items="newIssue.Lines" Hover="true" Dense="true" Class="mt-4">
+                    <HeaderContent>
+                        <MudTh>Product</MudTh>
+                        <MudTh>Qty</MudTh>
+                        <MudTh Class="text-right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="line">
+                        <MudTd>@GetProductName(line.ProductId)</MudTd>
+                        <MudTd>@line.Quantity</MudTd>
+                        <MudTd Class="text-right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveLine(line))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
 
-        <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mt-3">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@isSubmitting" OnClick="SubmitAsync">
-                @(isSubmitting ? "Submitting..." : "Submit Issue")
-            </MudButton>
-        </MudStack>
-    }
-</MudPaper>
+                <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@isSubmitting" OnClick="SubmitAsync">
+                        @(isSubmitting ? "Submitting..." : "Submit Issue")
+                    </MudButton>
+                </MudStack>
+            }
+        </MudPaper>
+    </Authorized>
+</AuthorizeView>
 
 <MudTable T="StockIssueListDto" @ref="table" ServerData="LoadServerData" Hover="true" Dense="true" Loading="@isLoading">
     <ToolBarContent>

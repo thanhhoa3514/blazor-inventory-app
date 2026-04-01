@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyApp.Server.Auth;
 using MyApp.Server.Data;
 using MyApp.Server.Services;
 using MyApp.Shared.Contracts;
@@ -8,6 +10,7 @@ namespace MyApp.Server.Controllers;
 
 [ApiController]
 [Route("api/issues")]
+[Authorize(Policy = AppPolicies.ReadAccess)]
 public class IssuesController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -75,6 +78,7 @@ public class IssuesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = AppPolicies.WarehouseOperations)]
     public async Task<ActionResult<StockIssueDetailDto>> Create(CreateStockIssueRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)

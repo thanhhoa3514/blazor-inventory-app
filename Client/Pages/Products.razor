@@ -1,4 +1,5 @@
 @page "/products"
+@attribute [Authorize]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -14,49 +15,54 @@
     </MudAlert>
 }
 
-<MudPaper Elevation="1" Class="pa-4 mb-4">
-    <MudForm @ref="formRef" Model="@form">
-        <MudGrid>
-            <MudItem xs="12" md="2">
-                <MudTextField T="string" Label="SKU" Variant="Variant.Outlined" @bind-Value="form.Sku"
-                              For="@(() => form.Sku)" Required="true" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField T="string" Label="Name" Variant="Variant.Outlined" @bind-Value="form.Name"
-                              For="@(() => form.Name)" Required="true" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTextField T="string" Label="Description" Variant="Variant.Outlined" @bind-Value="form.Description"
-                              For="@(() => form.Description)" />
-            </MudItem>
-            <MudItem xs="12" md="2">
-                <MudSelect T="int" Label="Category" Variant="Variant.Outlined" @bind-Value="form.CategoryId"
-                           For="@(() => form.CategoryId)">
-                    @foreach (var category in categories)
+<AuthorizeView Roles="@AppRoles.Admin">
+    <Authorized>
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudForm @ref="formRef" Model="@form">
+                <MudGrid>
+                    <MudItem xs="12" md="2">
+                        <MudTextField T="string" Label="SKU" Variant="Variant.Outlined" @bind-Value="form.Sku"
+                                      For="@(() => form.Sku)" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="Name" Variant="Variant.Outlined" @bind-Value="form.Name"
+                                      For="@(() => form.Name)" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" Label="Description" Variant="Variant.Outlined" @bind-Value="form.Description"
+                                      For="@(() => form.Description)" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudSelect T="int" Label="Category" Variant="Variant.Outlined" @bind-Value="form.CategoryId"
+                                   For="@(() => form.CategoryId)">
+                            <MudSelectItem T="int" Value="0">Select category</MudSelectItem>
+                            @foreach (var category in categories)
+                            {
+                                <MudSelectItem T="int" Value="@category.Id">@category.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" md="1">
+                        <MudNumericField T="int" Label="Reorder" Variant="Variant.Outlined" Min="0"
+                                         @bind-Value="form.ReorderLevel" For="@(() => form.ReorderLevel)" />
+                    </MudItem>
+                    <MudItem xs="6" md="1" Class="d-flex align-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@isSubmitting"
+                                   OnClick="SaveAsync">
+                            @(isSubmitting ? "..." : (editingId.HasValue ? "Update" : "Create"))
+                        </MudButton>
+                    </MudItem>
+                    @if (editingId.HasValue)
                     {
-                        <MudSelectItem T="int" Value="@category.Id">@category.Name</MudSelectItem>
+                        <MudItem xs="12">
+                            <MudSwitch T="bool" Color="Color.Primary" @bind-Value="form.IsActive">Active product</MudSwitch>
+                        </MudItem>
                     }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="6" md="1">
-                <MudNumericField T="int" Label="Reorder" Variant="Variant.Outlined" Min="0"
-                                 @bind-Value="form.ReorderLevel" For="@(() => form.ReorderLevel)" />
-            </MudItem>
-            <MudItem xs="6" md="1" Class="d-flex align-end">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@isSubmitting"
-                           OnClick="SaveAsync">
-                    @(isSubmitting ? "..." : (editingId.HasValue ? "Update" : "Create"))
-                </MudButton>
-            </MudItem>
-            @if (editingId.HasValue)
-            {
-                <MudItem xs="12">
-                    <MudSwitch T="bool" Color="Color.Primary" @bind-Value="form.IsActive">Active product</MudSwitch>
-                </MudItem>
-            }
-        </MudGrid>
-    </MudForm>
-</MudPaper>
+                </MudGrid>
+            </MudForm>
+        </MudPaper>
+    </Authorized>
+</AuthorizeView>
 
 <MudTable T="ProductDto" @ref="table" ServerData="LoadServerData" Hover="true" Dense="true" Loading="@isLoading">
     <ToolBarContent>
@@ -101,10 +107,14 @@
             </MudChip>
         </MudTd>
         <MudTd DataLabel="Actions" Class="text-right">
-            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
-                       OnClick="@(() => StartEdit(context))">Edit</MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2"
-                       OnClick="@(() => DeleteAsync(context))">Delete</MudButton>
+            <AuthorizeView Roles="@AppRoles.Admin">
+                <Authorized Context="authState">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                               OnClick="@(() => StartEdit(context))">Edit</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2"
+                               OnClick="@(() => DeleteAsync(context))">Delete</MudButton>
+                </Authorized>
+            </AuthorizeView>
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
@@ -142,36 +152,57 @@
     {
         isLoading = true;
         serverError = null;
+        var errors = new List<string>();
+        List<CategoryDto>? categoryResult = null;
+        List<ProductDto>? productResult = null;
+
         try
         {
-            var categoryResult = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
-            var productResult = await Http.GetFromJsonAsync<List<ProductDto>>("api/products");
-
-            categories.Clear();
-            items.Clear();
-
-            if (categoryResult is not null)
-            {
-                categories.AddRange(categoryResult);
-
-            }
-
-            if (productResult is not null)
-            {
-                items.AddRange(productResult);
-            }
+            categoryResult = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
         }
         catch (Exception ex)
         {
-            serverError = $"Failed to load products: {ex.Message}";
+            errors.Add($"categories: {ex.Message}");
         }
-        finally
+
+        try
+        {
+            productResult = await Http.GetFromJsonAsync<List<ProductDto>>("api/products");
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"products: {ex.Message}");
+        }
+
+        categories.Clear();
+        items.Clear();
+
+        if (categoryResult is not null)
+        {
+            categories.AddRange(categoryResult);
+        }
+
+        if (productResult is not null)
+        {
+            items.AddRange(productResult);
+        }
+
+        if (errors.Count > 0)
+        {
+            serverError = $"Failed to load data ({string.Join(" | ", errors)})";
+        }
+
+        try
         {
             isLoading = false;
             if (table is not null)
             {
                 await table.ReloadServerData();
             }
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
