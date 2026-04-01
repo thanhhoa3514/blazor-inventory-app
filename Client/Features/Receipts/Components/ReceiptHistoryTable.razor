@@ -1,6 +1,6 @@
 @namespace MyApp.Client.Features.Receipts.Components
 
-<MudTable T="StockReceiptListDto" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
+<MudTable T="StockReceiptListDto" @key="ReloadKey" @ref="_table" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
     <ToolBarContent>
         <MudText Typo="Typo.h6">Receipt History</MudText>
         <MudSpacer />
@@ -11,7 +11,7 @@
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search"
                       Value="@SearchTerm"
-                      ValueChanged="SearchTermChanged" />
+                      ValueChanged="OnSearchChangedAsync" />
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel T="StockReceiptListDto" SortLabel="doc">Doc No</MudTableSortLabel></MudTh>
@@ -40,11 +40,23 @@
 </MudTable>
 
 @code {
+    private MudTable<StockReceiptListDto>? _table;
+
     [Parameter] public bool IsLoading { get; set; }
     [Parameter] public string SearchTerm { get; set; } = string.Empty;
+    [Parameter] public int ReloadKey { get; set; }
     [Parameter] public EventCallback<string> SearchTermChanged { get; set; }
     [Parameter, EditorRequired] public Func<TableState, CancellationToken, Task<TableData<StockReceiptListDto>>> ServerData { get; set; } = default!;
 
     private Task<TableData<StockReceiptListDto>> LoadServerDataAsync(TableState state, CancellationToken cancellationToken)
         => ServerData.Invoke(state, cancellationToken);
+
+    private async Task OnSearchChangedAsync(string value)
+    {
+        await SearchTermChanged.InvokeAsync(value);
+        if (_table is not null)
+        {
+            await _table.ReloadServerData();
+        }
+    }
 }

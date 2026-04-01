@@ -92,6 +92,10 @@
             return "/";
         }
 
-        return ReturnUrl.StartsWith('/') ? ReturnUrl : "/";
+        var normalized = ReturnUrl.StartsWith("/", StringComparison.Ordinal)
+            ? ReturnUrl
+            : $"/{ReturnUrl.TrimStart('/')}";
+
+        return normalized.StartsWith("//", StringComparison.Ordinal) ? "/" : normalized;
     }
 }

@@ -1,12 +1,12 @@
 @namespace MyApp.Client.Features.Products.Components
 
-<MudTable T="ProductDto" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
+<MudTable T="ProductDto" @key="ReloadKey" @ref="_table" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
     <ToolBarContent>
         <MudText Typo="Typo.h6">Product List</MudText>
         <MudSpacer />
         <MudTextField T="string" Label="Search" Variant="Variant.Outlined" Margin="Margin.Dense"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Value="@Filter.SearchTerm"
-                      ValueChanged="FilterChanged" />
+                      ValueChanged="OnFilterChangedAsync" />
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="sku">SKU</MudTableSortLabel></MudTh>
@@ -50,8 +50,11 @@
 </MudTable>
 
 @code {
+    private MudTable<ProductDto>? _table;
+
     [Parameter] public bool IsLoading { get; set; }
     [Parameter, EditorRequired] public ProductFilterModel Filter { get; set; } = default!;
+    [Parameter] public int ReloadKey { get; set; }
     [Parameter] public EventCallback<string> FilterChanged { get; set; }
     [Parameter, EditorRequired] public Func<TableState, CancellationToken, Task<TableData<ProductDto>>> ServerData { get; set; } = default!;
     [Parameter] public EventCallback<ProductDto> OnEdit { get; set; }
@@ -59,4 +62,13 @@
 
     private Task<TableData<ProductDto>> LoadServerDataAsync(TableState state, CancellationToken cancellationToken)
         => ServerData.Invoke(state, cancellationToken);
+
+    private async Task OnFilterChangedAsync(string value)
+    {
+        await FilterChanged.InvokeAsync(value);
+        if (_table is not null)
+        {
+            await _table.ReloadServerData();
+        }
+    }
 }

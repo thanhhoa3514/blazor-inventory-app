@@ -22,6 +22,7 @@
 
 <ProductTable IsLoading="_isLoading"
               Filter="_filter"
+              ReloadKey="_tableReloadKey"
               FilterChanged="OnSearchChanged"
               ServerData="LoadServerData"
               OnEdit="StartEdit"
@@ -36,6 +37,7 @@
     private int? _editingId;
     private bool _isLoading = true;
     private bool _isSubmitting;
+    private int _tableReloadKey;
     private string? _serverError;
 
     protected override async Task OnInitializedAsync()
@@ -77,6 +79,7 @@
         }
 
         _isLoading = false;
+        _tableReloadKey++;
     }
 
     private async Task SaveAsync()

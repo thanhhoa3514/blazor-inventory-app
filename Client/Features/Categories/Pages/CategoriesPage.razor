@@ -16,6 +16,7 @@
 <CategoryForm Model="_form" IsSubmitting="_isSubmitting" IsEditing="@_editingId.HasValue" OnSubmit="SaveAsync" />
 <CategoryTable IsLoading="_isLoading"
                SearchTerm="_searchTerm"
+               ReloadKey="_tableReloadKey"
                SearchTermChanged="OnSearchChanged"
                ServerData="LoadServerData"
                OnEdit="StartEdit"
@@ -27,6 +28,7 @@
     private int? _editingId;
     private bool _isLoading = true;
     private bool _isSubmitting;
+    private int _tableReloadKey;
     private string? _serverError;
     private string _searchTerm = string.Empty;
 
@@ -53,6 +55,7 @@
         finally
         {
             _isLoading = false;
+            _tableReloadKey++;
         }
     }
 

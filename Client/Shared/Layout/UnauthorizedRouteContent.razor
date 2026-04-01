@@ -22,7 +22,9 @@
 @code {
     private void NavigateToLogin()
     {
-        var returnUrl = Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri));
+        var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var normalizedPath = string.IsNullOrWhiteSpace(relativePath) ? "/" : $"/{relativePath.TrimStart('/')}";
+        var returnUrl = Uri.EscapeDataString(normalizedPath);
         Navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
     }
 }
