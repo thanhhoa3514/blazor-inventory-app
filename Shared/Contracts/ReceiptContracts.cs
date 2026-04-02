@@ -6,6 +6,7 @@ public record StockReceiptListDto(
     int Id,
     string DocumentNo,
     DateTime ReceivedAtUtc,
+    int? SupplierId,
     string? Supplier,
     decimal TotalAmount,
     int LineCount);
@@ -23,6 +24,7 @@ public class StockReceiptDetailDto
     public int Id { get; set; }
     public string DocumentNo { get; set; } = string.Empty;
     public DateTime ReceivedAtUtc { get; set; }
+    public int? SupplierId { get; set; }
     public string? Supplier { get; set; }
     public string? Note { get; set; }
     public decimal TotalAmount { get; set; }
@@ -31,8 +33,7 @@ public class StockReceiptDetailDto
 
 public class CreateStockReceiptRequest
 {
-    [MaxLength(200)]
-    public string? Supplier { get; set; }
+    public int? SupplierId { get; set; }
 
     [MaxLength(500)]
     public string? Note { get; set; }

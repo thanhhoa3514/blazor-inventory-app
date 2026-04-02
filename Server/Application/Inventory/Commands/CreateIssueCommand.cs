@@ -9,17 +9,20 @@ public sealed class CreateIssueCommand
 {
     private readonly IInventoryUnitOfWork _uow;
     private readonly IProductRepository _products;
+    private readonly ICustomerRepository _customers;
     private readonly IStockIssueRepository _issues;
     private readonly ILogger<CreateIssueCommand> _logger;
 
     public CreateIssueCommand(
         IInventoryUnitOfWork uow,
         IProductRepository products,
+        ICustomerRepository customers,
         IStockIssueRepository issues,
         ILogger<CreateIssueCommand> logger)
     {
         _uow = uow;
         _products = products;
+        _customers = customers;
         _issues = issues;
         _logger = logger;
     }
@@ -38,10 +41,22 @@ public sealed class CreateIssueCommand
         await _uow.BeginTransactionAsync(ct);
         try
         {
+            Customer? customer = null;
+            if (request.CustomerId.HasValue)
+            {
+                customer = await _customers.FindActiveAsync(request.CustomerId.Value, ct);
+                if (customer is null)
+                {
+                    await _uow.RollbackAsync(ct);
+                    return new AppResult<StockIssueDetailDto>.ValidationError(
+                        $"Customer with ID {request.CustomerId.Value} does not exist or is inactive.");
+                }
+            }
+
             var issue = new StockIssue
             {
                 DocumentNo = documentNo,
-                Customer = request.Customer?.Trim(),
+                CustomerId = customer?.Id,
                 Note = request.Note?.Trim(),
                 IssuedAtUtc = now
             };

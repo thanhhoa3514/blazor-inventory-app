@@ -29,8 +29,12 @@
 
 <AdjustmentHistoryTable IsLoading="_isLoading"
                         SearchTerm="_searchTerm"
+                        FromDate="_fromDate"
+                        ToDate="_toDate"
                         ReloadKey="_tableReloadKey"
                         SearchTermChanged="OnSearchChanged"
+                        FromDateChanged="OnFromDateChanged"
+                        ToDateChanged="OnToDateChanged"
                         ServerData="LoadServerData" />
 
 @code {
@@ -39,6 +43,8 @@
     private int _tableReloadKey;
     private string? _serverError;
     private string _searchTerm = string.Empty;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
 
     private int _lineProductId;
     private string _lineDirection = StockAdjustmentDirections.Increase;
@@ -180,6 +186,18 @@
                 x.Reason.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         }
 
+        if (_fromDate.HasValue)
+        {
+            var from = _fromDate.Value.Date;
+            query = query.Where(x => x.AdjustedAtUtc.ToLocalTime().Date >= from);
+        }
+
+        if (_toDate.HasValue)
+        {
+            var to = _toDate.Value.Date;
+            query = query.Where(x => x.AdjustedAtUtc.ToLocalTime().Date <= to);
+        }
+
         query = state.SortLabel switch
         {
             "doc" => ApplySort(query, state.SortDirection, x => x.DocumentNo),
@@ -206,6 +224,18 @@
     private Task OnSearchChanged(string value)
     {
         _searchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnFromDateChanged(DateTime? value)
+    {
+        _fromDate = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnToDateChanged(DateTime? value)
+    {
+        _toDate = value;
         return Task.CompletedTask;
     }
 

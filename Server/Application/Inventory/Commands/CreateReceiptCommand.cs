@@ -9,17 +9,20 @@ public sealed class CreateReceiptCommand
 {
     private readonly IInventoryUnitOfWork _uow;
     private readonly IProductRepository _products;
+    private readonly ISupplierRepository _suppliers;
     private readonly IStockReceiptRepository _receipts;
     private readonly ILogger<CreateReceiptCommand> _logger;
 
     public CreateReceiptCommand(
         IInventoryUnitOfWork uow,
         IProductRepository products,
+        ISupplierRepository suppliers,
         IStockReceiptRepository receipts,
         ILogger<CreateReceiptCommand> logger)
     {
         _uow = uow;
         _products = products;
+        _suppliers = suppliers;
         _receipts = receipts;
         _logger = logger;
     }
@@ -38,10 +41,22 @@ public sealed class CreateReceiptCommand
         await _uow.BeginTransactionAsync(ct);
         try
         {
+            Supplier? supplier = null;
+            if (request.SupplierId.HasValue)
+            {
+                supplier = await _suppliers.FindActiveAsync(request.SupplierId.Value, ct);
+                if (supplier is null)
+                {
+                    await _uow.RollbackAsync(ct);
+                    return new AppResult<StockReceiptDetailDto>.ValidationError(
+                        $"Supplier with ID {request.SupplierId.Value} does not exist or is inactive.");
+                }
+            }
+
             var receipt = new StockReceipt
             {
                 DocumentNo = documentNo,
-                Supplier = request.Supplier?.Trim(),
+                SupplierId = supplier?.Id,
                 Note = request.Note?.Trim(),
                 ReceivedAtUtc = now
             };

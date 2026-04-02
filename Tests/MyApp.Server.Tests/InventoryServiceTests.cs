@@ -20,7 +20,6 @@ public class InventoryCommandTests
 
         var result = await cmd.ExecuteAsync(new CreateStockReceiptRequest
         {
-            Supplier = "Supplier A",
             Lines =
             [
                 new CreateStockReceiptLineRequest { ProductId = 1, Quantity = 10, UnitCost = 20m }
@@ -42,7 +41,6 @@ public class InventoryCommandTests
 
         var result = await cmd.ExecuteAsync(new CreateStockIssueRequest
         {
-            Customer = "Customer A",
             Lines =
             [
                 new CreateStockIssueLineRequest { ProductId = 1, Quantity = 5 }
@@ -151,11 +149,11 @@ public class InventoryCommandTests
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private static CreateReceiptCommand BuildReceiptCommand(AppDbContext db)
-        => new(new InventoryUnitOfWork(db), new ProductRepository(db),
+        => new(new InventoryUnitOfWork(db), new ProductRepository(db), new SupplierRepository(db),
                new StockReceiptRepository(db), NullLogger<CreateReceiptCommand>.Instance);
 
     private static CreateIssueCommand BuildIssueCommand(AppDbContext db)
-        => new(new InventoryUnitOfWork(db), new ProductRepository(db),
+        => new(new InventoryUnitOfWork(db), new ProductRepository(db), new CustomerRepository(db),
                new StockIssueRepository(db), NullLogger<CreateIssueCommand>.Instance);
 
     private static CreateAdjustmentCommand BuildAdjustmentCommand(AppDbContext db)

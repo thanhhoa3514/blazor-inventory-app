@@ -31,9 +31,12 @@
             </MudChip>
         </MudTd>
         <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Href="@($"/products/{context.Id}/stock-card")">
+                Stock Card
+            </MudButton>
             <AuthorizeView Roles="@AppRoles.Admin">
                 <Authorized Context="authState">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" Class="ml-2"
                                OnClick="@(() => OnEdit.InvokeAsync(context))">Edit</MudButton>
                     <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2"
                                OnClick="@(() => OnDelete.InvokeAsync(context))">Delete</MudButton>

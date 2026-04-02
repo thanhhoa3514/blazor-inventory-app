@@ -40,7 +40,7 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.ProductSku</MudTd>
-            <MudTd>@context.ProductName</MudTd>
+            <MudTd><MudLink Href="@($"/products/{context.ProductId}/stock-card")">@context.ProductName</MudLink></MudTd>
             <MudTd>@context.Quantity</MudTd>
             <MudTd>@context.UnitCost.ToString("C")</MudTd>
             <MudTd>@context.LineTotal.ToString("C")</MudTd>

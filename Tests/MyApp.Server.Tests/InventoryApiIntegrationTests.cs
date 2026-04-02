@@ -71,14 +71,65 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task SupplierAndCustomerMasterData_AsAdmin_CanCreateUpdateAndDeactivate()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var supplier = await CreateSupplierAsync(client, "Warehouse Supplier");
+        var customer = await CreateCustomerAsync(client, "Warehouse Customer");
+
+        var updateSupplier = await client.PutAsJsonAsync($"/api/suppliers/{supplier.Id}", new UpdateSupplierRequest
+        {
+            Name = "Warehouse Supplier Updated",
+            Description = "Updated by integration test",
+            IsActive = true
+        });
+        updateSupplier.EnsureSuccessStatusCode();
+
+        var updateCustomer = await client.PutAsJsonAsync($"/api/customers/{customer.Id}", new UpdateCustomerRequest
+        {
+            Name = "Warehouse Customer Updated",
+            Description = "Updated by integration test",
+            IsActive = true
+        });
+        updateCustomer.EnsureSuccessStatusCode();
+
+        var deactivateSupplier = await client.DeleteAsync($"/api/suppliers/{supplier.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deactivateSupplier.StatusCode);
+
+        var deactivateCustomer = await client.DeleteAsync($"/api/customers/{customer.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deactivateCustomer.StatusCode);
+
+        var suppliers = await client.GetFromJsonAsync<List<SupplierDto>>("/api/suppliers");
+        var customers = await client.GetFromJsonAsync<List<CustomerDto>>("/api/customers");
+
+        Assert.NotNull(suppliers);
+        Assert.NotNull(customers);
+
+        var updatedSupplier = suppliers!.Single(x => x.Id == supplier.Id);
+        var updatedCustomer = customers!.Single(x => x.Id == customer.Id);
+
+        Assert.Equal("Warehouse Supplier Updated", updatedSupplier.Name);
+        Assert.False(updatedSupplier.IsActive);
+        Assert.Equal("Warehouse Customer Updated", updatedCustomer.Name);
+        Assert.False(updatedCustomer.IsActive);
+    }
+
+    [Fact]
     public async Task ReceiptIssueAndSummary_AsWarehouseStaff_Works()
     {
+        using var adminClient = CreateClient();
+        await LoginAsync(adminClient, "admin", AdminPassword);
+        var supplier = await CreateSupplierAsync(adminClient, "Integration Supplier");
+        var customer = await CreateCustomerAsync(adminClient, "Integration Customer");
+
         using var client = CreateClient();
         await LoginAsync(client, "staff", StaffPassword);
 
         var createReceipt = await client.PostAsJsonAsync("/api/receipts", new CreateStockReceiptRequest
         {
-            Supplier = "Test Supplier",
+            SupplierId = supplier.Id,
             Lines =
             [
                 new CreateStockReceiptLineRequest { ProductId = 1, Quantity = 5, UnitCost = 12m }
@@ -88,7 +139,7 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
 
         var createIssue = await client.PostAsJsonAsync("/api/issues", new CreateStockIssueRequest
         {
-            Customer = "Test Customer",
+            CustomerId = customer.Id,
             Lines =
             [
                 new CreateStockIssueLineRequest { ProductId = 1, Quantity = 3 }
@@ -103,6 +154,70 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task ProductStockCard_ReturnsReceiptIssueAndAdjustmentEntries_WithFiltering()
+    {
+        using var adminClient = CreateClient();
+        await LoginAsync(adminClient, "admin", AdminPassword);
+        var supplier = await CreateSupplierAsync(adminClient, "Stock Card Supplier");
+        var customer = await CreateCustomerAsync(adminClient, "Stock Card Customer");
+
+        using var client = CreateClient();
+        await LoginAsync(client, "staff", StaffPassword);
+
+        var receiptResponse = await client.PostAsJsonAsync("/api/receipts", new CreateStockReceiptRequest
+        {
+            SupplierId = supplier.Id,
+            Lines =
+            [
+                new CreateStockReceiptLineRequest { ProductId = 1, Quantity = 2, UnitCost = 15m }
+            ]
+        });
+        receiptResponse.EnsureSuccessStatusCode();
+
+        var issueResponse = await client.PostAsJsonAsync("/api/issues", new CreateStockIssueRequest
+        {
+            CustomerId = customer.Id,
+            Lines =
+            [
+                new CreateStockIssueLineRequest { ProductId = 1, Quantity = 1 }
+            ]
+        });
+        issueResponse.EnsureSuccessStatusCode();
+
+        var adjustmentResponse = await client.PostAsJsonAsync("/api/adjustments", new
+        {
+            reason = "Stock card test adjustment",
+            lines = new[]
+            {
+                new
+                {
+                    productId = 1,
+                    direction = "increase",
+                    quantity = 3
+                }
+            }
+        });
+        adjustmentResponse.EnsureSuccessStatusCode();
+
+        var stockCard = await client.GetFromJsonAsync<ProductStockCardDto>("/api/inventory/products/1/stock-card");
+        Assert.NotNull(stockCard);
+        Assert.Equal(1, stockCard!.ProductId);
+        Assert.Contains(stockCard.Entries, x => x.MovementType == InventoryMovementTypes.Receipt);
+        Assert.Contains(stockCard.Entries, x => x.MovementType == InventoryMovementTypes.Issue);
+        Assert.Contains(stockCard.Entries, x => x.MovementType == InventoryMovementTypes.Adjustment);
+
+        var issueOnly = await client.GetFromJsonAsync<ProductStockCardDto>("/api/inventory/products/1/stock-card?movementType=ISSUE");
+        Assert.NotNull(issueOnly);
+        Assert.NotEmpty(issueOnly!.Entries);
+        Assert.All(issueOnly.Entries, x => Assert.Equal(InventoryMovementTypes.Issue, x.MovementType));
+
+        var futureFrom = Uri.EscapeDataString(DateTime.UtcNow.AddDays(1).ToString("O"));
+        var emptyFuture = await client.GetFromJsonAsync<ProductStockCardDto>($"/api/inventory/products/1/stock-card?fromUtc={futureFrom}");
+        Assert.NotNull(emptyFuture);
+        Assert.Empty(emptyFuture!.Entries);
+    }
+
+    [Fact]
     public async Task CreateIssue_AsViewer_ReturnsForbidden()
     {
         using var client = CreateClient();
@@ -110,7 +225,6 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
 
         var response = await client.PostAsJsonAsync("/api/issues", new CreateStockIssueRequest
         {
-            Customer = "Viewer Attempt",
             Lines =
             [
                 new CreateStockIssueLineRequest { ProductId = 1, Quantity = 1 }
@@ -299,5 +413,29 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
         });
 
         response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<SupplierDto> CreateSupplierAsync(HttpClient client, string name)
+    {
+        var response = await client.PostAsJsonAsync("/api/suppliers", new CreateSupplierRequest
+        {
+            Name = name,
+            Description = "Created by integration test"
+        });
+
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<SupplierDto>())!;
+    }
+
+    private static async Task<CustomerDto> CreateCustomerAsync(HttpClient client, string name)
+    {
+        var response = await client.PostAsJsonAsync("/api/customers", new CreateCustomerRequest
+        {
+            Name = name,
+            Description = "Created by integration test"
+        });
+
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<CustomerDto>())!;
     }
 }

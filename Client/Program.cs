@@ -7,10 +7,12 @@ using MyApp.Client.Features.Adjustments.Services;
 using MyApp.Client.Features.Auth.Services;
 using MyApp.Client.Features.Auth.State;
 using MyApp.Client.Features.Categories.Services;
+using MyApp.Client.Features.Customers.Services;
 using MyApp.Client.Features.Inventory.Services;
 using MyApp.Client.Features.Issues.Services;
 using MyApp.Client.Features.Products.Services;
 using MyApp.Client.Features.Receipts.Services;
+using MyApp.Client.Features.Suppliers.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -20,6 +22,8 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthApiClient>();
 builder.Services.AddScoped<CategoryApiClient>();
+builder.Services.AddScoped<SupplierApiClient>();
+builder.Services.AddScoped<CustomerApiClient>();
 builder.Services.AddScoped<ProductApiClient>();
 builder.Services.AddScoped<InventoryApiClient>();
 builder.Services.AddScoped<ReceiptApiClient>();

@@ -13,8 +13,8 @@ public class StockIssue
 
     public DateTime IssuedAtUtc { get; set; } = DateTime.UtcNow;
 
-    [MaxLength(200)]
-    public string? Customer { get; set; }
+    public int? CustomerId { get; set; }
+    public Customer? Customer { get; set; }
 
     [MaxLength(500)]
     public string? Note { get; set; }

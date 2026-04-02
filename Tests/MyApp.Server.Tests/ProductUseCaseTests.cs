@@ -137,7 +137,7 @@ public class ProductUseCaseTests
             ReorderLevel = 5
         });
 
-        var receipt = new StockReceipt { DocumentNo = "REC-001", Supplier = "Test", ReceivedAtUtc = DateTime.UtcNow };
+        var receipt = new StockReceipt { DocumentNo = "REC-001", ReceivedAtUtc = DateTime.UtcNow };
         db.StockReceipts.Add(receipt);
         await db.SaveChangesAsync();
 

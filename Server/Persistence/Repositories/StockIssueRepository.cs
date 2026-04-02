@@ -15,18 +15,21 @@ public sealed class StockIssueRepository : IStockIssueRepository
 
     public async Task<IReadOnlyList<StockIssueListDto>> GetAllAsync(CancellationToken ct = default)
         => await _db.StockIssues.AsNoTracking()
+            .Include(x => x.Customer)
             .OrderByDescending(x => x.IssuedAtUtc)
             .Select(x => new StockIssueListDto(
                 x.Id,
                 x.DocumentNo,
                 x.IssuedAtUtc,
-                x.Customer,
+                x.CustomerId,
+                x.Customer != null ? x.Customer.Name : null,
                 x.TotalAmount,
                 x.Lines.Count))
             .ToListAsync(ct);
 
     public async Task<StockIssueDetailDto?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.StockIssues.AsNoTracking()
+            .Include(x => x.Customer)
             .Include(x => x.Lines)
             .ThenInclude(x => x.Product)
             .Where(x => x.Id == id)
@@ -35,7 +38,8 @@ public sealed class StockIssueRepository : IStockIssueRepository
                 Id = x.Id,
                 DocumentNo = x.DocumentNo,
                 IssuedAtUtc = x.IssuedAtUtc,
-                Customer = x.Customer,
+                CustomerId = x.CustomerId,
+                Customer = x.Customer != null ? x.Customer.Name : null,
                 Note = x.Note,
                 TotalAmount = x.TotalAmount,
                 Lines = x.Lines

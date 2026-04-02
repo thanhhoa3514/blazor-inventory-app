@@ -13,8 +13,8 @@ public class StockReceipt
 
     public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
 
-    [MaxLength(200)]
-    public string? Supplier { get; set; }
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
 
     [MaxLength(500)]
     public string? Note { get; set; }

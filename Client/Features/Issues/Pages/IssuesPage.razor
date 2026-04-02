@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IssueApiClient IssueApiClient
 @inject ProductApiClient ProductApiClient
+@inject CustomerApiClient CustomerApiClient
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
@@ -16,6 +17,9 @@
 
 <IssueEditor Model="_newIssue"
              Products="_products"
+             Customers="_customers"
+             SelectedCustomer="_selectedCustomer"
+             SelectedCustomerChanged="OnCustomerChanged"
              SelectedProductId="_lineProductId"
              SelectedProductIdChanged="@(value => _lineProductId = value)"
              Quantity="_lineQuantity"
@@ -27,8 +31,12 @@
 
 <IssueHistoryTable IsLoading="_isLoading"
                    SearchTerm="_searchTerm"
+                   FromDate="_fromDate"
+                   ToDate="_toDate"
                    ReloadKey="_tableReloadKey"
                    SearchTermChanged="OnSearchChanged"
+                   FromDateChanged="OnFromDateChanged"
+                   ToDateChanged="OnToDateChanged"
                    ServerData="LoadServerData" />
 
 @code {
@@ -37,6 +45,8 @@
     private int _tableReloadKey;
     private string? _serverError;
     private string _searchTerm = string.Empty;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
 
     private int _lineProductId;
     private int _lineQuantity = 1;
@@ -44,6 +54,8 @@
     private readonly CreateStockIssueRequest _newIssue = new();
     private readonly List<StockIssueListDto> _issues = new();
     private readonly List<ProductDto> _products = new();
+    private readonly List<CustomerDto> _customers = new();
+    private CustomerDto? _selectedCustomer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,11 +71,14 @@
         {
             var issueResult = await IssueApiClient.GetAllAsync();
             var productResult = await ProductApiClient.GetActiveAsync();
+            var customerResult = await CustomerApiClient.GetActiveAsync();
 
             _issues.Clear();
             _products.Clear();
+            _customers.Clear();
             _issues.AddRange(issueResult);
             _products.AddRange(productResult);
+            _customers.AddRange(customerResult);
         }
         catch (Exception ex)
         {
@@ -133,9 +148,10 @@
                 return;
             }
 
-            _newIssue.Customer = null;
             _newIssue.Note = null;
             _newIssue.Lines.Clear();
+            _newIssue.CustomerId = null;
+            _selectedCustomer = null;
 
             Snackbar.Add("Issue submitted successfully.", Severity.Success);
             await LoadAsync();
@@ -162,6 +178,18 @@
                 (!string.IsNullOrWhiteSpace(x.Customer) && x.Customer.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
         }
 
+        if (_fromDate.HasValue)
+        {
+            var from = _fromDate.Value.Date;
+            query = query.Where(x => x.IssuedAtUtc.ToLocalTime().Date >= from);
+        }
+
+        if (_toDate.HasValue)
+        {
+            var to = _toDate.Value.Date;
+            query = query.Where(x => x.IssuedAtUtc.ToLocalTime().Date <= to);
+        }
+
         query = state.SortLabel switch
         {
             "doc" => ApplySort(query, state.SortDirection, x => x.DocumentNo),
@@ -185,9 +213,28 @@
     private static IEnumerable<StockIssueListDto> ApplySort<TKey>(IEnumerable<StockIssueListDto> query, SortDirection direction, Func<StockIssueListDto, TKey> keySelector)
         => direction == SortDirection.Descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
 
+    private Task OnCustomerChanged(CustomerDto? customer)
+    {
+        _selectedCustomer = customer;
+        _newIssue.CustomerId = customer?.Id;
+        return Task.CompletedTask;
+    }
+
     private Task OnSearchChanged(string value)
     {
         _searchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnFromDateChanged(DateTime? value)
+    {
+        _fromDate = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnToDateChanged(DateTime? value)
+    {
+        _toDate = value;
         return Task.CompletedTask;
     }
 

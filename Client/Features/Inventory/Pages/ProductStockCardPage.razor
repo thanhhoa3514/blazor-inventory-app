@@ -1,0 +1,95 @@
+@page "/products/{ProductId:int}/stock-card"
+@attribute [Authorize]
+@inject InventoryApiClient InventoryApiClient
+
+<PageTitle>Product Stock Card</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Product Stock Card</MudText>
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading stock card..." />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" />
+}
+else if (_stockCard is null)
+{
+    <ErrorState Message="Product stock card not found." Severity="Severity.Warning" />
+}
+else
+{
+    <MudPaper Elevation="1" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4"><MudText><b>SKU:</b> @_stockCard.Sku</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Name:</b> @_stockCard.Name</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Category:</b> @_stockCard.CategoryName</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Status:</b> @(_stockCard.IsActive ? "Active" : "Inactive")</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Current On Hand:</b> @_stockCard.CurrentOnHandQty</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Current Avg Cost:</b> @_stockCard.CurrentAverageCost.ToString("C")</MudText></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <StockCardFilterBar Filter="_filter"
+                        FromDateChanged="OnFromDateChanged"
+                        ToDateChanged="OnToDateChanged"
+                        MovementTypeChanged="OnMovementTypeChanged" />
+
+    <StockCardTable Entries="_stockCard.Entries" />
+}
+
+@code {
+    [Parameter] public int ProductId { get; set; }
+
+    private readonly StockCardFilterModel _filter = new();
+    private bool _isLoading = true;
+    private string? _error;
+    private ProductStockCardDto? _stockCard;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _stockCard = await InventoryApiClient.GetProductStockCardAsync(
+                ProductId,
+                _filter.FromDate,
+                _filter.ToDate,
+                _filter.MovementType);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load stock card: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnFromDateChanged(DateTime? value)
+    {
+        _filter.FromDate = value;
+        await LoadAsync();
+    }
+
+    private async Task OnToDateChanged(DateTime? value)
+    {
+        _filter.ToDate = value;
+        await LoadAsync();
+    }
+
+    private async Task OnMovementTypeChanged(string? value)
+    {
+        _filter.MovementType = value;
+        await LoadAsync();
+    }
+}

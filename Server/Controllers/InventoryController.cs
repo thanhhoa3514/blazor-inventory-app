@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MyApp.Server.Application.Common;
+using MyApp.Server.Application.Inventory.Queries;
 using MyApp.Server.Auth;
 using MyApp.Server.Persistence.Repositories;
 using MyApp.Shared.Contracts;
@@ -12,10 +14,12 @@ namespace MyApp.Server.Controllers;
 public class InventoryController : ControllerBase
 {
     private readonly IProductRepository _products;
+    private readonly GetProductStockCardQuery _getStockCard;
 
-    public InventoryController(IProductRepository products)
+    public InventoryController(IProductRepository products, GetProductStockCardQuery getStockCard)
     {
         _products = products;
+        _getStockCard = getStockCard;
     }
 
     [HttpGet("summary")]
@@ -45,5 +49,23 @@ public class InventoryController : ControllerBase
         };
 
         return Ok(summary);
+    }
+
+    [HttpGet("products/{productId:int}/stock-card")]
+    public async Task<ActionResult<ProductStockCardDto>> GetProductStockCard(
+        int productId,
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] string? movementType,
+        CancellationToken cancellationToken)
+    {
+        var result = await _getStockCard.ExecuteAsync(productId, fromUtc, toUtc, movementType, cancellationToken);
+        return result switch
+        {
+            AppResult<ProductStockCardDto>.Ok ok => Ok(ok.Value),
+            AppResult<ProductStockCardDto>.ValidationError err => BadRequest(err.Message),
+            AppResult<ProductStockCardDto>.NotFound => NotFound(),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
     }
 }

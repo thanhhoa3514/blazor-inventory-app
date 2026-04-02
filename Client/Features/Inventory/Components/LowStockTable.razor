@@ -20,7 +20,9 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="SKU">@context.Sku</MudTd>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Name">
+                <MudLink Href="@($"/products/{context.ProductId}/stock-card")">@context.Name</MudLink>
+            </MudTd>
             <MudTd DataLabel="Category">@context.CategoryName</MudTd>
             <MudTd DataLabel="On Hand">@context.OnHandQty</MudTd>
             <MudTd DataLabel="Reorder">@context.ReorderLevel</MudTd>

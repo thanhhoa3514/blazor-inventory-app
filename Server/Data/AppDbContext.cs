@@ -13,6 +13,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<StockReceipt> StockReceipts => Set<StockReceipt>();
     public DbSet<StockReceiptLine> StockReceiptLines => Set<StockReceiptLine>();
     public DbSet<StockIssue> StockIssues => Set<StockIssue>();
@@ -58,15 +60,36 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<Supplier>(entity =>
+        {
+            entity.ToTable("Suppliers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.ToTable("Customers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
         modelBuilder.Entity<StockReceipt>(entity =>
         {
             entity.ToTable("StockReceipts");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.DocumentNo).IsRequired().HasMaxLength(50);
             entity.HasIndex(x => x.DocumentNo).IsUnique();
-            entity.Property(x => x.Supplier).HasMaxLength(200);
             entity.Property(x => x.Note).HasMaxLength(500);
             entity.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            entity.HasOne(x => x.Supplier)
+                .WithMany(x => x.Receipts)
+                .HasForeignKey(x => x.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StockReceiptLine>(entity =>
@@ -95,9 +118,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(x => x.Id);
             entity.Property(x => x.DocumentNo).IsRequired().HasMaxLength(50);
             entity.HasIndex(x => x.DocumentNo).IsUnique();
-            entity.Property(x => x.Customer).HasMaxLength(200);
             entity.Property(x => x.Note).HasMaxLength(500);
             entity.Property(x => x.TotalAmount).HasPrecision(18, 2);
+            entity.HasOne(x => x.Customer)
+                .WithMany(x => x.Issues)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StockIssueLine>(entity =>

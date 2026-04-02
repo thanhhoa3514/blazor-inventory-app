@@ -7,7 +7,16 @@
 
             <MudGrid>
                 <MudItem xs="12" md="4">
-                    <MudTextField T="string" Label="Customer" Variant="Variant.Outlined" @bind-Value="Model.Customer" />
+                    <MudAutocomplete T="CustomerDto"
+                                     Label="Customer"
+                                     Variant="Variant.Outlined"
+                                     Value="SelectedCustomer"
+                                     ValueChanged="SelectedCustomerChanged"
+                                     SearchFunc="SearchCustomersAsync"
+                                     ToStringFunc="@(x => x?.Name)"
+                                     Clearable="true"
+                                     ResetValueOnEmptyText="true"
+                                     Dense="true" />
                 </MudItem>
                 <MudItem xs="12" md="8">
                     <MudTextField T="string" Label="Note" Variant="Variant.Outlined" @bind-Value="Model.Note" />
@@ -51,6 +60,9 @@
 @code {
     [Parameter, EditorRequired] public CreateStockIssueRequest Model { get; set; } = default!;
     [Parameter] public IReadOnlyList<ProductDto> Products { get; set; } = Array.Empty<ProductDto>();
+    [Parameter] public IReadOnlyList<CustomerDto> Customers { get; set; } = Array.Empty<CustomerDto>();
+    [Parameter] public CustomerDto? SelectedCustomer { get; set; }
+    [Parameter] public EventCallback<CustomerDto?> SelectedCustomerChanged { get; set; }
     [Parameter] public int SelectedProductId { get; set; }
     [Parameter] public EventCallback<int> SelectedProductIdChanged { get; set; }
     [Parameter] public int Quantity { get; set; } = 1;
@@ -64,5 +76,18 @@
     {
         var product = Products.FirstOrDefault(x => x.Id == productId);
         return product is null ? $"Product #{productId}" : $"{product.Sku} - {product.Name}";
+    }
+
+    private Task<IEnumerable<CustomerDto>> SearchCustomersAsync(string value, CancellationToken cancellationToken)
+    {
+        IEnumerable<CustomerDto> query = Customers;
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            var keyword = value.Trim();
+            query = query.Where(x => x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult(query.Take(20));
     }
 }

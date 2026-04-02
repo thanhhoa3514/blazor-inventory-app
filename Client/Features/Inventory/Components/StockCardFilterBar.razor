@@ -1,0 +1,58 @@
+@namespace MyApp.Client.Features.Inventory.Components
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" md="3">
+            <MudDatePicker Label="From"
+                           Variant="Variant.Outlined"
+                           Date="Filter.FromDate"
+                           DateChanged="OnFromDateChangedAsync"
+                           Clearable="true"
+                           Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudDatePicker Label="To"
+                           Variant="Variant.Outlined"
+                           Date="Filter.ToDate"
+                           DateChanged="OnToDateChangedAsync"
+                           Clearable="true"
+                           Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="string" Label="Movement Type" Variant="Variant.Outlined" Value="Filter.MovementType" ValueChanged="OnMovementTypeChangedAsync" Margin="Margin.Dense">
+                <MudSelectItem T="string" Value="@string.Empty">All movements</MudSelectItem>
+                <MudSelectItem T="string" Value="@InventoryMovementTypes.Receipt">Receipt</MudSelectItem>
+                <MudSelectItem T="string" Value="@InventoryMovementTypes.Issue">Issue</MudSelectItem>
+                <MudSelectItem T="string" Value="@InventoryMovementTypes.Adjustment">Adjustment</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="3" Class="d-flex align-end">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true" OnClick="ClearFiltersAsync">
+                Clear Filters
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public StockCardFilterModel Filter { get; set; } = default!;
+    [Parameter] public EventCallback<DateTime?> FromDateChanged { get; set; }
+    [Parameter] public EventCallback<DateTime?> ToDateChanged { get; set; }
+    [Parameter] public EventCallback<string?> MovementTypeChanged { get; set; }
+
+    private Task OnFromDateChangedAsync(DateTime? value)
+        => FromDateChanged.InvokeAsync(value);
+
+    private Task OnToDateChangedAsync(DateTime? value)
+        => ToDateChanged.InvokeAsync(value);
+
+    private Task OnMovementTypeChangedAsync(string? value)
+        => MovementTypeChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+
+    private async Task ClearFiltersAsync()
+    {
+        await FromDateChanged.InvokeAsync(null);
+        await ToDateChanged.InvokeAsync(null);
+        await MovementTypeChanged.InvokeAsync(null);
+    }
+}

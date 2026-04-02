@@ -41,7 +41,7 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.ProductSku</MudTd>
-            <MudTd>@context.ProductName</MudTd>
+            <MudTd><MudLink Href="@($"/products/{context.ProductId}/stock-card")">@context.ProductName</MudLink></MudTd>
             <MudTd>@GetDirectionLabel(context.Direction)</MudTd>
             <MudTd>@GetSignedQuantity(context)</MudTd>
             <MudTd>@context.UnitCost.ToString("C")</MudTd>

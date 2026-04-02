@@ -2,9 +2,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MyApp.Server.Application.Categories.Commands;
 using MyApp.Server.Application.Categories.Queries;
+using MyApp.Server.Application.Customers.Commands;
+using MyApp.Server.Application.Customers.Queries;
 using MyApp.Server.Application.Inventory.Commands;
+using MyApp.Server.Application.Inventory.Queries;
 using MyApp.Server.Application.Products.Commands;
 using MyApp.Server.Application.Products.Queries;
+using MyApp.Server.Application.Suppliers.Commands;
+using MyApp.Server.Application.Suppliers.Queries;
 using MyApp.Server.Auth;
 using MyApp.Server.Data;
 using MyApp.Server.Persistence.Repositories;
@@ -77,9 +82,12 @@ builder.Services.Configure<AuthSeedOptions>(builder.Configuration.GetSection("Au
 // Repositories
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IStockReceiptRepository, StockReceiptRepository>();
 builder.Services.AddScoped<IStockIssueRepository, StockIssueRepository>();
 builder.Services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
+builder.Services.AddScoped<IInventoryReadRepository, InventoryReadRepository>();
 builder.Services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();
 
 // Category use cases
@@ -88,6 +96,20 @@ builder.Services.AddScoped<GetCategoryByIdQuery>();
 builder.Services.AddScoped<CreateCategoryCommand>();
 builder.Services.AddScoped<UpdateCategoryCommand>();
 builder.Services.AddScoped<DeleteCategoryCommand>();
+
+// Supplier use cases
+builder.Services.AddScoped<GetAllSuppliersQuery>();
+builder.Services.AddScoped<GetSupplierByIdQuery>();
+builder.Services.AddScoped<CreateSupplierCommand>();
+builder.Services.AddScoped<UpdateSupplierCommand>();
+builder.Services.AddScoped<DeactivateSupplierCommand>();
+
+// Customer use cases
+builder.Services.AddScoped<GetAllCustomersQuery>();
+builder.Services.AddScoped<GetCustomerByIdQuery>();
+builder.Services.AddScoped<CreateCustomerCommand>();
+builder.Services.AddScoped<UpdateCustomerCommand>();
+builder.Services.AddScoped<DeactivateCustomerCommand>();
 
 // Product use cases
 builder.Services.AddScoped<GetAllProductsQuery>();
@@ -100,6 +122,7 @@ builder.Services.AddScoped<DeleteProductCommand>();
 builder.Services.AddScoped<CreateReceiptCommand>();
 builder.Services.AddScoped<CreateIssueCommand>();
 builder.Services.AddScoped<CreateAdjustmentCommand>();
+builder.Services.AddScoped<GetProductStockCardQuery>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();

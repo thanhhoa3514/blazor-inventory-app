@@ -268,6 +268,40 @@ namespace MyApp.Server.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MyApp.Shared.Domain.Customer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Customers", (string)null);
+                });
+
             modelBuilder.Entity("MyApp.Shared.Domain.InventoryLedgerEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -493,9 +527,8 @@ namespace MyApp.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Customer")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("int");
 
                     b.Property<string>("DocumentNo")
                         .IsRequired()
@@ -514,6 +547,8 @@ namespace MyApp.Server.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
 
                     b.HasIndex("DocumentNo")
                         .IsUnique();
@@ -580,9 +615,8 @@ namespace MyApp.Server.Migrations
                     b.Property<DateTime>("ReceivedAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Supplier")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                    b.Property<int?>("SupplierId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
@@ -592,6 +626,8 @@ namespace MyApp.Server.Migrations
 
                     b.HasIndex("DocumentNo")
                         .IsUnique();
+
+                    b.HasIndex("SupplierId");
 
                     b.ToTable("StockReceipts", (string)null);
                 });
@@ -633,6 +669,40 @@ namespace MyApp.Server.Migrations
 
                             t.HasCheckConstraint("CK_StockReceiptLines_UnitCost_NonNegative", "[UnitCost] >= 0");
                         });
+                });
+
+            modelBuilder.Entity("MyApp.Shared.Domain.Supplier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastUpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -727,6 +797,16 @@ namespace MyApp.Server.Migrations
                     b.Navigation("StockAdjustment");
                 });
 
+            modelBuilder.Entity("MyApp.Shared.Domain.StockIssue", b =>
+                {
+                    b.HasOne("MyApp.Shared.Domain.Customer", "Customer")
+                        .WithMany("Issues")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("MyApp.Shared.Domain.StockIssueLine", b =>
                 {
                     b.HasOne("MyApp.Shared.Domain.Product", "Product")
@@ -744,6 +824,16 @@ namespace MyApp.Server.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("StockIssue");
+                });
+
+            modelBuilder.Entity("MyApp.Shared.Domain.StockReceipt", b =>
+                {
+                    b.HasOne("MyApp.Shared.Domain.Supplier", "Supplier")
+                        .WithMany("Receipts")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("MyApp.Shared.Domain.StockReceiptLine", b =>
@@ -770,6 +860,11 @@ namespace MyApp.Server.Migrations
                     b.Navigation("Products");
                 });
 
+            modelBuilder.Entity("MyApp.Shared.Domain.Customer", b =>
+                {
+                    b.Navigation("Issues");
+                });
+
             modelBuilder.Entity("MyApp.Shared.Domain.Product", b =>
                 {
                     b.Navigation("AdjustmentLines");
@@ -794,6 +889,11 @@ namespace MyApp.Server.Migrations
             modelBuilder.Entity("MyApp.Shared.Domain.StockReceipt", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("MyApp.Shared.Domain.Supplier", b =>
+                {
+                    b.Navigation("Receipts");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,0 +1,203 @@
+@page "/customers"
+@attribute [Authorize]
+@inject CustomerApiClient CustomerApiClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Customers</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Customers</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_serverError))
+{
+    <ErrorState Message="@_serverError" Class="mb-4" />
+}
+
+<CustomerForm Model="_form" IsSubmitting="_isSubmitting" IsEditing="@_editingId.HasValue" OnSubmit="SaveAsync" />
+<CustomerTable IsLoading="_isLoading"
+               SearchTerm="_searchTerm"
+               ReloadKey="_tableReloadKey"
+               SearchTermChanged="OnSearchChanged"
+               ServerData="LoadServerData"
+               OnEdit="StartEdit"
+               OnDeactivate="DeactivateAsync" />
+
+@code {
+    private readonly UpdateCustomerRequest _form = new();
+    private readonly List<CustomerDto> _items = new();
+    private int? _editingId;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private int _tableReloadKey;
+    private string? _serverError;
+    private string _searchTerm = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _serverError = null;
+
+        try
+        {
+            var result = await CustomerApiClient.GetAllAsync();
+            _items.Clear();
+            _items.AddRange(result);
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Failed to load customers: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+            _tableReloadKey++;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _isSubmitting = true;
+        _serverError = null;
+
+        try
+        {
+            var result = _editingId.HasValue
+                ? await CustomerApiClient.UpdateAsync(_editingId.Value, _form)
+                : await CustomerApiClient.CreateAsync(new CreateCustomerRequest
+                {
+                    Name = _form.Name,
+                    Description = _form.Description
+                });
+
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add(_editingId.HasValue ? "Customer updated." : "Customer created.", Severity.Success);
+            ResetForm();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void StartEdit(CustomerDto item)
+    {
+        _editingId = item.Id;
+        _form.Name = item.Name;
+        _form.Description = item.Description;
+        _form.IsActive = item.IsActive;
+    }
+
+    private async Task DeactivateAsync(CustomerDto item)
+    {
+        _serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Deactivate Customer",
+            content: $"Deactivate customer '{item.Name}'? It will no longer be available in issue selection.",
+            buttonText: "Deactivate",
+            color: Color.Warning);
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var result = await CustomerApiClient.DeactivateAsync(item.Id);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            if (_editingId == item.Id)
+            {
+                _form.IsActive = false;
+            }
+
+            Snackbar.Add("Customer deactivated.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Deactivate failed: {ex.Message}";
+        }
+    }
+
+    private Task<TableData<CustomerDto>> LoadServerData(TableState state, CancellationToken cancellationToken)
+    {
+        IEnumerable<CustomerDto> query = _items;
+
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            var keyword = _searchTerm.Trim();
+            query = query.Where(x =>
+                x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(x.Description) && x.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        query = state.SortLabel switch
+        {
+            "name" => state.SortDirection == SortDirection.Descending ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
+            "updated" => state.SortDirection == SortDirection.Descending ? query.OrderByDescending(x => x.LastUpdatedUtc) : query.OrderBy(x => x.LastUpdatedUtc),
+            _ => query.OrderBy(x => x.Name)
+        };
+
+        var totalItems = query.Count();
+        var pagedItems = query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+
+        return Task.FromResult(new TableData<CustomerDto>
+        {
+            TotalItems = totalItems,
+            Items = pagedItems
+        });
+    }
+
+    private Task OnSearchChanged(string value)
+    {
+        _searchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfirmDialog.ContentText)] = content,
+            [nameof(ConfirmDialog.ButtonText)] = buttonText,
+            [nameof(ConfirmDialog.Color)] = color
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(title, parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.ExtraSmall,
+            CloseOnEscapeKey = true,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
+    }
+
+    private void ResetForm()
+    {
+        _editingId = null;
+        _form.Name = string.Empty;
+        _form.Description = string.Empty;
+        _form.IsActive = true;
+    }
+}

@@ -12,6 +12,20 @@
                       AdornmentIcon="@Icons.Material.Filled.Search"
                       Value="@SearchTerm"
                       ValueChanged="OnSearchChangedAsync" />
+        <MudDatePicker Label="From"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Date="FromDate"
+                       DateChanged="OnFromDateChangedAsync"
+                       Clearable="true"
+                       Class="ml-2" />
+        <MudDatePicker Label="To"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Date="ToDate"
+                       DateChanged="OnToDateChangedAsync"
+                       Clearable="true"
+                       Class="ml-2" />
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel T="StockIssueListDto" SortLabel="doc">Doc No</MudTableSortLabel></MudTh>
@@ -44,8 +58,12 @@
 
     [Parameter] public bool IsLoading { get; set; }
     [Parameter] public string SearchTerm { get; set; } = string.Empty;
+    [Parameter] public DateTime? FromDate { get; set; }
+    [Parameter] public DateTime? ToDate { get; set; }
     [Parameter] public int ReloadKey { get; set; }
     [Parameter] public EventCallback<string> SearchTermChanged { get; set; }
+    [Parameter] public EventCallback<DateTime?> FromDateChanged { get; set; }
+    [Parameter] public EventCallback<DateTime?> ToDateChanged { get; set; }
     [Parameter, EditorRequired] public Func<TableState, CancellationToken, Task<TableData<StockIssueListDto>>> ServerData { get; set; } = default!;
 
     private Task<TableData<StockIssueListDto>> LoadServerDataAsync(TableState state, CancellationToken cancellationToken)
@@ -54,6 +72,24 @@
     private async Task OnSearchChangedAsync(string value)
     {
         await SearchTermChanged.InvokeAsync(value);
+        if (_table is not null)
+        {
+            await _table.ReloadServerData();
+        }
+    }
+
+    private async Task OnFromDateChangedAsync(DateTime? value)
+    {
+        await FromDateChanged.InvokeAsync(value);
+        if (_table is not null)
+        {
+            await _table.ReloadServerData();
+        }
+    }
+
+    private async Task OnToDateChangedAsync(DateTime? value)
+    {
+        await ToDateChanged.InvokeAsync(value);
         if (_table is not null)
         {
             await _table.ReloadServerData();

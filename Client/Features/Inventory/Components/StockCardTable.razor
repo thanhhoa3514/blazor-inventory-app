@@ -1,0 +1,44 @@
+@namespace MyApp.Client.Features.Inventory.Components
+
+<MudTable T="StockCardEntryDto" Items="Entries" Hover="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Date</MudTh>
+        <MudTh>Movement</MudTh>
+        <MudTh>Reference</MudTh>
+        <MudTh>Qty Change</MudTh>
+        <MudTh>Unit Cost</MudTh>
+        <MudTh>Value Change</MudTh>
+        <MudTh>Running On Hand</MudTh>
+        <MudTh>Running Avg Cost</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Date">@context.OccurredAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Movement">
+            <MudChip T="string" Size="Size.Small" Color="@GetMovementColor(context.MovementType)">
+                @context.MovementType
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Reference">@context.ReferenceNo</MudTd>
+        <MudTd DataLabel="Qty Change">@context.QuantityChange</MudTd>
+        <MudTd DataLabel="Unit Cost">@context.UnitCost.ToString("C")</MudTd>
+        <MudTd DataLabel="Value Change">@context.ValueChange.ToString("C")</MudTd>
+        <MudTd DataLabel="Running On Hand">@context.RunningOnHandQty</MudTd>
+        <MudTd DataLabel="Running Avg Cost">@context.RunningAverageCost.ToString("C")</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No stock-card entries found for the selected filters.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter] public IReadOnlyList<StockCardEntryDto> Entries { get; set; } = Array.Empty<StockCardEntryDto>();
+
+    private static Color GetMovementColor(string movementType)
+        => movementType switch
+        {
+            InventoryMovementTypes.Receipt => Color.Success,
+            InventoryMovementTypes.Issue => Color.Warning,
+            InventoryMovementTypes.Adjustment => Color.Info,
+            _ => Color.Default
+        };
+}

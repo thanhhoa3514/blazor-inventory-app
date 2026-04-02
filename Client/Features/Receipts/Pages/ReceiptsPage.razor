@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject ReceiptApiClient ReceiptApiClient
 @inject ProductApiClient ProductApiClient
+@inject SupplierApiClient SupplierApiClient
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
@@ -16,6 +17,9 @@
 
 <ReceiptEditor Model="_newReceipt"
                Products="_products"
+               Suppliers="_suppliers"
+               SelectedSupplier="_selectedSupplier"
+               SelectedSupplierChanged="OnSupplierChanged"
                SelectedProductId="_lineProductId"
                SelectedProductIdChanged="@(value => _lineProductId = value)"
                Quantity="_lineQuantity"
@@ -29,8 +33,12 @@
 
 <ReceiptHistoryTable IsLoading="_isLoading"
                      SearchTerm="_searchTerm"
+                     FromDate="_fromDate"
+                     ToDate="_toDate"
                      ReloadKey="_tableReloadKey"
                      SearchTermChanged="OnSearchChanged"
+                     FromDateChanged="OnFromDateChanged"
+                     ToDateChanged="OnToDateChanged"
                      ServerData="LoadServerData" />
 
 @code {
@@ -39,6 +47,8 @@
     private int _tableReloadKey;
     private string? _serverError;
     private string _searchTerm = string.Empty;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
 
     private int _lineProductId;
     private int _lineQuantity = 1;
@@ -47,6 +57,8 @@
     private readonly CreateStockReceiptRequest _newReceipt = new();
     private readonly List<StockReceiptListDto> _receipts = new();
     private readonly List<ProductDto> _products = new();
+    private readonly List<SupplierDto> _suppliers = new();
+    private SupplierDto? _selectedSupplier;
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,11 +74,14 @@
         {
             var receiptResult = await ReceiptApiClient.GetAllAsync();
             var productResult = await ProductApiClient.GetActiveAsync();
+            var supplierResult = await SupplierApiClient.GetActiveAsync();
 
             _receipts.Clear();
             _products.Clear();
+            _suppliers.Clear();
             _receipts.AddRange(receiptResult);
             _products.AddRange(productResult);
+            _suppliers.AddRange(supplierResult);
         }
         catch (Exception ex)
         {
@@ -138,9 +153,10 @@
                 return;
             }
 
-            _newReceipt.Supplier = null;
             _newReceipt.Note = null;
             _newReceipt.Lines.Clear();
+            _newReceipt.SupplierId = null;
+            _selectedSupplier = null;
 
             Snackbar.Add("Receipt submitted successfully.", Severity.Success);
             await LoadAsync();
@@ -167,6 +183,18 @@
                 (!string.IsNullOrWhiteSpace(x.Supplier) && x.Supplier.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
         }
 
+        if (_fromDate.HasValue)
+        {
+            var from = _fromDate.Value.Date;
+            query = query.Where(x => x.ReceivedAtUtc.ToLocalTime().Date >= from);
+        }
+
+        if (_toDate.HasValue)
+        {
+            var to = _toDate.Value.Date;
+            query = query.Where(x => x.ReceivedAtUtc.ToLocalTime().Date <= to);
+        }
+
         query = state.SortLabel switch
         {
             "doc" => ApplySort(query, state.SortDirection, x => x.DocumentNo),
@@ -190,9 +218,28 @@
     private static IEnumerable<StockReceiptListDto> ApplySort<TKey>(IEnumerable<StockReceiptListDto> query, SortDirection direction, Func<StockReceiptListDto, TKey> keySelector)
         => direction == SortDirection.Descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
 
+    private Task OnSupplierChanged(SupplierDto? supplier)
+    {
+        _selectedSupplier = supplier;
+        _newReceipt.SupplierId = supplier?.Id;
+        return Task.CompletedTask;
+    }
+
     private Task OnSearchChanged(string value)
     {
         _searchTerm = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnFromDateChanged(DateTime? value)
+    {
+        _fromDate = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnToDateChanged(DateTime? value)
+    {
+        _toDate = value;
         return Task.CompletedTask;
     }
 

@@ -6,6 +6,7 @@ public record StockIssueListDto(
     int Id,
     string DocumentNo,
     DateTime IssuedAtUtc,
+    int? CustomerId,
     string? Customer,
     decimal TotalAmount,
     int LineCount);
@@ -23,6 +24,7 @@ public class StockIssueDetailDto
     public int Id { get; set; }
     public string DocumentNo { get; set; } = string.Empty;
     public DateTime IssuedAtUtc { get; set; }
+    public int? CustomerId { get; set; }
     public string? Customer { get; set; }
     public string? Note { get; set; }
     public decimal TotalAmount { get; set; }
@@ -31,8 +33,7 @@ public class StockIssueDetailDto
 
 public class CreateStockIssueRequest
 {
-    [MaxLength(200)]
-    public string? Customer { get; set; }
+    public int? CustomerId { get; set; }
 
     [MaxLength(500)]
     public string? Note { get; set; }
