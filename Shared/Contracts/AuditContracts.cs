@@ -8,4 +8,7 @@ public record AuditLogDto(
     string? ActorUserId,
     string ActorUserName,
     string Summary,
+    string? BeforeJson,
+    string? AfterJson,
+    string? ChangedFieldsJson,
     DateTime OccurredAtUtc);

@@ -94,7 +94,7 @@ public class CategoryUseCaseTests
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
         var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
-        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter(), new StaticCurrentUserAccessor());
 
         var catResult = (AppResult<CategoryDto>.Ok)await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Busy" });
         int catId = catResult.Value.Id;
@@ -117,18 +117,26 @@ public class CategoryUseCaseTests
     }
 
     [Fact]
-    public async Task DeleteCategory_Empty_ReturnsOk()
+    public async Task DeleteCategory_Empty_SoftDeletesRow()
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
         var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
-        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter(), new StaticCurrentUserAccessor());
 
         var catResult = (AppResult<CategoryDto>.Ok)await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Empty" });
 
         var result = await deleteCmd.ExecuteAsync(catResult.Value.Id);
 
         Assert.IsType<AppResult<Unit>.Ok>(result);
+        var deleted = await db.Categories.AsNoTracking().FirstAsync(x => x.Id == catResult.Value.Id);
+        Assert.True(deleted.IsDeleted);
+        Assert.Equal("test.user", deleted.DeletedByUserName);
+
+        var deletedEntity = await db.Categories.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == catResult.Value.Id);
+        Assert.NotNull(deletedEntity);
+        Assert.True(deletedEntity!.IsDeleted);
+        Assert.Equal("test.user", deletedEntity.DeletedByUserName);
     }
 
     [Fact]
@@ -136,7 +144,7 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter(), new StaticCurrentUserAccessor());
 
         var result = await deleteCmd.ExecuteAsync(9999);
 

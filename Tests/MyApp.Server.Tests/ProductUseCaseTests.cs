@@ -119,15 +119,15 @@ public class ProductUseCaseTests
         Assert.IsType<AppResult<ProductDto>.Conflict>(result);
     }
 
-    // ── delete blocked by transaction history ───────────────────────────────
+    // ── soft delete behavior ───────────────────────────────────────────────
 
     [Fact]
-    public async Task DeleteProduct_WithReceiptHistory_ReturnsConflict()
+    public async Task DeleteProduct_WithReceiptHistory_SoftDeletesAndKeepsRow()
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
         var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
-        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), NullLogger<DeleteProductCommand>.Instance);
+        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), new StaticCurrentUserAccessor(), NullLogger<DeleteProductCommand>.Instance);
 
         var product = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
         {
@@ -153,16 +153,22 @@ public class ProductUseCaseTests
 
         var result = await deleteCmd.ExecuteAsync(product.Value.Id);
 
-        Assert.IsType<AppResult<Unit>.Conflict>(result);
+        Assert.IsType<AppResult<Unit>.Ok>(result);
+
+        var deletedEntity = await db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == product.Value.Id);
+        Assert.NotNull(deletedEntity);
+        Assert.True(deletedEntity!.IsDeleted);
+        Assert.False(deletedEntity.IsActive);
+        Assert.Equal("test.user", deletedEntity.DeletedByUserName);
     }
 
     [Fact]
-    public async Task DeleteProduct_NoHistory_ReturnsOk()
+    public async Task DeleteProduct_NoHistory_SoftDeletesRow()
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
         var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
-        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), NullLogger<DeleteProductCommand>.Instance);
+        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), new StaticCurrentUserAccessor(), NullLogger<DeleteProductCommand>.Instance);
 
         var product = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
         {
@@ -175,6 +181,16 @@ public class ProductUseCaseTests
         var result = await deleteCmd.ExecuteAsync(product.Value.Id);
 
         Assert.IsType<AppResult<Unit>.Ok>(result);
+        var deleted = await db.Products.AsNoTracking().FirstAsync(x => x.Id == product.Value.Id);
+        Assert.True(deleted.IsDeleted);
+        Assert.False(deleted.IsActive);
+        Assert.Equal("test.user", deleted.DeletedByUserName);
+
+        var deletedEntity = await db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == product.Value.Id);
+        Assert.NotNull(deletedEntity);
+        Assert.True(deletedEntity!.IsDeleted);
+        Assert.False(deletedEntity.IsActive);
+        Assert.Equal("test.user", deletedEntity.DeletedByUserName);
     }
 
     [Fact]
@@ -182,7 +198,7 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new ProductRepository(db);
-        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), NullLogger<DeleteProductCommand>.Instance);
+        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), new StaticCurrentUserAccessor(), NullLogger<DeleteProductCommand>.Instance);
 
         var result = await deleteCmd.ExecuteAsync(9999);
 

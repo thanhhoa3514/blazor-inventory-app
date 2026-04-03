@@ -16,26 +16,27 @@ public sealed class CategoryRepository : ICategoryRepository
 
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(CancellationToken ct = default)
         => await _db.Categories.AsNoTracking()
+            .Where(x => !x.IsDeleted)
             .OrderBy(x => x.Name)
             .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.CreatedAtUtc))
             .ToListAsync(ct);
 
     public async Task<CategoryDto?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Categories.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && !x.IsDeleted)
             .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.CreatedAtUtc))
             .FirstOrDefaultAsync(ct);
 
     public async Task<bool> ExistsByNameAsync(string name, int? excludeId, CancellationToken ct = default)
         => excludeId.HasValue
-            ? await _db.Categories.AnyAsync(x => x.Id != excludeId.Value && x.Name == name, ct)
-            : await _db.Categories.AnyAsync(x => x.Name == name, ct);
+            ? await _db.Categories.AnyAsync(x => x.Id != excludeId.Value && !x.IsDeleted && x.Name == name, ct)
+            : await _db.Categories.AnyAsync(x => !x.IsDeleted && x.Name == name, ct);
 
     public async Task<bool> HasProductsAsync(int id, CancellationToken ct = default)
-        => await _db.Products.AnyAsync(x => x.CategoryId == id, ct);
+        => await _db.Products.AnyAsync(x => x.CategoryId == id && !x.IsDeleted, ct);
 
     public async Task<Category?> FindAsync(int id, CancellationToken ct = default)
-        => await _db.Categories.FirstOrDefaultAsync(x => x.Id == id, ct);
+        => await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
 
     public async Task AddAsync(Category entity, CancellationToken ct = default)
     {
@@ -48,7 +49,7 @@ public sealed class CategoryRepository : ICategoryRepository
 
     public async Task DeleteAsync(Category entity, CancellationToken ct = default)
     {
-        _db.Categories.Remove(entity);
+        _db.Categories.Update(entity);
         await _db.SaveChangesAsync(ct);
     }
 }

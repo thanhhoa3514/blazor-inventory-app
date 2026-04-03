@@ -16,6 +16,7 @@ public sealed class CustomerRepository : ICustomerRepository
 
     public async Task<IReadOnlyList<CustomerDto>> GetAllAsync(CancellationToken ct = default)
         => await _db.Customers.AsNoTracking()
+            .Where(x => !x.IsDeleted)
             .OrderBy(x => x.Name)
             .Select(x => new CustomerDto(
                 x.Id,
@@ -28,7 +29,7 @@ public sealed class CustomerRepository : ICustomerRepository
 
     public async Task<CustomerDto?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Customers.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && !x.IsDeleted)
             .Select(x => new CustomerDto(
                 x.Id,
                 x.Name,
@@ -44,10 +45,10 @@ public sealed class CustomerRepository : ICustomerRepository
             : await _db.Customers.AnyAsync(x => x.Name == name, ct);
 
     public async Task<Customer?> FindAsync(int id, CancellationToken ct = default)
-        => await _db.Customers.FirstOrDefaultAsync(x => x.Id == id, ct);
+        => await _db.Customers.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
 
     public async Task<Customer?> FindActiveAsync(int id, CancellationToken ct = default)
-        => await _db.Customers.FirstOrDefaultAsync(x => x.Id == id && x.IsActive, ct);
+        => await _db.Customers.FirstOrDefaultAsync(x => x.Id == id && x.IsActive && !x.IsDeleted, ct);
 
     public async Task AddAsync(Customer entity, CancellationToken ct = default)
     {

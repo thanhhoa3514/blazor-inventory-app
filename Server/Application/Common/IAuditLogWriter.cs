@@ -7,5 +7,8 @@ public interface IAuditLogWriter
         string entityId,
         string action,
         string summary,
+        object? beforeState = null,
+        object? afterState = null,
+        object? changedFields = null,
         CancellationToken ct = default);
 }

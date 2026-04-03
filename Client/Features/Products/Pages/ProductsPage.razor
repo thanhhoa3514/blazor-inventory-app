@@ -124,9 +124,9 @@
         _serverError = null;
 
         var confirmed = await ConfirmAsync(
-            title: "Delete Product",
-            content: $"Delete product '{item.Sku} - {item.Name}'? This action cannot be undone.",
-            buttonText: "Delete",
+            title: "Soft Delete Product",
+            content: $"Soft delete product '{item.Sku} - {item.Name}'? It will be hidden from active lists but kept for history.",
+            buttonText: "Soft Delete",
             color: Color.Error);
 
         if (!confirmed)
@@ -148,7 +148,7 @@
                 ResetForm();
             }
 
-            Snackbar.Add("Product deleted.", Severity.Success);
+            Snackbar.Add("Product soft deleted.", Severity.Success);
             await LoadAsync();
         }
         catch (Exception ex)

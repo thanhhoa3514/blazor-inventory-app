@@ -65,6 +65,9 @@ public sealed class AuditLogRepository : IAuditLogRepository
                 x.ActorUserId,
                 x.ActorUserName,
                 x.Summary,
+                x.BeforeJson,
+                x.AfterJson,
+                x.ChangedFieldsJson,
                 x.OccurredAtUtc))
             .ToListAsync(ct);
     }

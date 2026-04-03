@@ -29,5 +29,9 @@ public class AuditLog
     [MaxLength(500)]
     public string Summary { get; set; } = string.Empty;
 
+    public string? BeforeJson { get; set; }
+    public string? AfterJson { get; set; }
+    public string? ChangedFieldsJson { get; set; }
+
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
 }

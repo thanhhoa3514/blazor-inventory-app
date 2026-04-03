@@ -54,6 +54,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
             entity.Property(x => x.Description).HasMaxLength(500);
             entity.Property(x => x.AverageCost).HasPrecision(18, 2);
+            entity.Property(x => x.DeletedByUserId).HasMaxLength(450);
+            entity.Property(x => x.DeletedByUserName).HasMaxLength(256);
             entity.HasIndex(x => x.Sku).IsUnique();
             entity.HasOne(x => x.Category)
                 .WithMany(x => x.Products)
@@ -67,6 +69,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
             entity.Property(x => x.Description).HasMaxLength(500);
+            entity.Property(x => x.DeletedByUserId).HasMaxLength(450);
+            entity.Property(x => x.DeletedByUserName).HasMaxLength(256);
             entity.HasIndex(x => x.Name).IsUnique();
         });
 
@@ -76,6 +80,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
             entity.Property(x => x.Description).HasMaxLength(500);
+            entity.Property(x => x.DeletedByUserId).HasMaxLength(450);
+            entity.Property(x => x.DeletedByUserName).HasMaxLength(256);
             entity.HasIndex(x => x.Name).IsUnique();
         });
 
@@ -89,6 +95,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ActorUserId).HasMaxLength(450);
             entity.Property(x => x.ActorUserName).IsRequired().HasMaxLength(256);
             entity.Property(x => x.Summary).IsRequired().HasMaxLength(500);
+            entity.Property(x => x.BeforeJson);
+            entity.Property(x => x.AfterJson);
+            entity.Property(x => x.ChangedFieldsJson);
             entity.HasIndex(x => new { x.EntityType, x.EntityId, x.OccurredAtUtc });
             entity.HasIndex(x => x.OccurredAtUtc);
         });

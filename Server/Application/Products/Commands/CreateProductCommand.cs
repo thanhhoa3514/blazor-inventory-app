@@ -35,14 +35,45 @@ public sealed class CreateProductCommand
             OnHandQty = 0,
             AverageCost = 0,
             IsActive = true,
+            IsDeleted = false,
             CreatedAtUtc = DateTime.UtcNow,
             LastUpdatedUtc = DateTime.UtcNow
         };
 
         await _repo.AddAsync(entity, ct);
-        await _auditLogWriter.WriteAsync("Product", entity.Id.ToString(), "Created", $"Created product '{entity.Sku} - {entity.Name}'.", ct);
+        await _auditLogWriter.WriteAsync(
+            "Product",
+            entity.Id.ToString(),
+            "Created",
+            $"Created product '{entity.Sku} - {entity.Name}'.",
+            afterState: Snapshot(entity),
+            changedFields: new object[]
+            {
+                new { field = "Sku", oldValue = (string?)null, newValue = entity.Sku },
+                new { field = "Name", oldValue = (string?)null, newValue = entity.Name },
+                new { field = "CategoryId", oldValue = (int?)null, newValue = entity.CategoryId },
+                new { field = "ReorderLevel", oldValue = (int?)null, newValue = entity.ReorderLevel }
+            },
+            ct: ct);
 
         var dto = await _repo.GetByIdAsync(entity.Id, ct);
         return new AppResult<ProductDto>.Ok(dto!);
     }
+
+    private static object Snapshot(Product entity) => new
+    {
+        entity.Id,
+        entity.Sku,
+        entity.Name,
+        entity.Description,
+        entity.CategoryId,
+        entity.OnHandQty,
+        entity.AverageCost,
+        entity.ReorderLevel,
+        entity.IsActive,
+        entity.IsDeleted,
+        entity.DeletedAtUtc,
+        entity.DeletedByUserName,
+        entity.LastUpdatedUtc
+    };
 }

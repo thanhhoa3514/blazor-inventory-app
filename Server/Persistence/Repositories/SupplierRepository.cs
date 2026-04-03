@@ -16,6 +16,7 @@ public sealed class SupplierRepository : ISupplierRepository
 
     public async Task<IReadOnlyList<SupplierDto>> GetAllAsync(CancellationToken ct = default)
         => await _db.Suppliers.AsNoTracking()
+            .Where(x => !x.IsDeleted)
             .OrderBy(x => x.Name)
             .Select(x => new SupplierDto(
                 x.Id,
@@ -28,7 +29,7 @@ public sealed class SupplierRepository : ISupplierRepository
 
     public async Task<SupplierDto?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Suppliers.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && !x.IsDeleted)
             .Select(x => new SupplierDto(
                 x.Id,
                 x.Name,
@@ -44,10 +45,10 @@ public sealed class SupplierRepository : ISupplierRepository
             : await _db.Suppliers.AnyAsync(x => x.Name == name, ct);
 
     public async Task<Supplier?> FindAsync(int id, CancellationToken ct = default)
-        => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id, ct);
+        => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
 
     public async Task<Supplier?> FindActiveAsync(int id, CancellationToken ct = default)
-        => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id && x.IsActive, ct);
+        => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id && x.IsActive && !x.IsDeleted, ct);
 
     public async Task AddAsync(Supplier entity, CancellationToken ct = default)
     {

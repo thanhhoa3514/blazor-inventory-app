@@ -28,6 +28,15 @@ public class Product
 
     public int ReorderLevel { get; set; } = 5;
     public bool IsActive { get; set; } = true;
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
+
+    [MaxLength(450)]
+    public string? DeletedByUserId { get; set; }
+
+    [MaxLength(256)]
+    public string? DeletedByUserName { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
 

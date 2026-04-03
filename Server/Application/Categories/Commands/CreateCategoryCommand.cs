@@ -27,11 +27,34 @@ public sealed class CreateCategoryCommand
         {
             Name = normalizedName,
             Description = request.Description?.Trim(),
+            IsDeleted = false,
             CreatedAtUtc = DateTime.UtcNow
         };
 
         await _repo.AddAsync(entity, ct);
-        await _auditLogWriter.WriteAsync("Category", entity.Id.ToString(), "Created", $"Created category '{entity.Name}'.", ct);
+        await _auditLogWriter.WriteAsync(
+            "Category",
+            entity.Id.ToString(),
+            "Created",
+            $"Created category '{entity.Name}'.",
+            afterState: Snapshot(entity),
+            changedFields: new object[]
+            {
+                new { field = "Name", oldValue = (string?)null, newValue = entity.Name },
+                new { field = "Description", oldValue = (string?)null, newValue = entity.Description }
+            },
+            ct: ct);
         return new AppResult<CategoryDto>.Ok(entity.ToDto());
     }
+
+    private static object Snapshot(Category entity) => new
+    {
+        entity.Id,
+        entity.Name,
+        entity.Description,
+        entity.IsDeleted,
+        entity.DeletedAtUtc,
+        entity.DeletedByUserName,
+        entity.CreatedAtUtc
+    };
 }

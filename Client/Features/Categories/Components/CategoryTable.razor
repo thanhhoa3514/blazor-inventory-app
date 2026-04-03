@@ -27,7 +27,7 @@
             <AuthorizeView Roles="@AppRoles.Admin">
                 <Authorized Context="authState">
                     <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => OnEdit.InvokeAsync(context))">Edit</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2" OnClick="@(() => OnDelete.InvokeAsync(context))">Delete</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2" OnClick="@(() => OnDelete.InvokeAsync(context))">Soft Delete</MudButton>
                 </Authorized>
             </AuthorizeView>
         </MudTd>

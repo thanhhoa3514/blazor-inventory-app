@@ -1,6 +1,7 @@
 using MyApp.Server.Application.Common;
 using MyApp.Server.Persistence.Repositories;
 using MyApp.Shared.Contracts;
+using MyApp.Shared.Domain;
 
 namespace MyApp.Server.Application.Suppliers.Commands;
 
@@ -21,6 +22,11 @@ public sealed class UpdateSupplierCommand
         if (entity is null)
             return new AppResult<SupplierDto>.NotFound($"Supplier with ID {id} was not found.");
 
+        var before = Snapshot(entity);
+        var oldName = entity.Name;
+        var oldDescription = entity.Description;
+        var oldIsActive = entity.IsActive;
+
         var normalizedName = request.Name.Trim();
         if (await _repo.ExistsByNameAsync(normalizedName, id, ct))
             return new AppResult<SupplierDto>.Conflict("Supplier name must be unique.");
@@ -31,7 +37,39 @@ public sealed class UpdateSupplierCommand
         entity.LastUpdatedUtc = DateTime.UtcNow;
 
         await _repo.SaveChangesAsync(ct);
-        await _auditLogWriter.WriteAsync("Supplier", entity.Id.ToString(), "Updated", $"Updated supplier '{entity.Name}'.", ct);
+        await _auditLogWriter.WriteAsync(
+            "Supplier",
+            entity.Id.ToString(),
+            "Updated",
+            $"Updated supplier '{entity.Name}'.",
+            beforeState: before,
+            afterState: Snapshot(entity),
+            changedFields: BuildChangedFields(oldName, entity.Name, oldDescription, entity.Description, oldIsActive, entity.IsActive),
+            ct: ct);
         return new AppResult<SupplierDto>.Ok(entity.ToDto());
+    }
+
+    private static object Snapshot(Supplier entity) => new
+    {
+        entity.Id,
+        entity.Name,
+        entity.Description,
+        entity.IsActive,
+        entity.IsDeleted,
+        entity.DeletedAtUtc,
+        entity.DeletedByUserName,
+        entity.LastUpdatedUtc
+    };
+
+    private static object[] BuildChangedFields(string oldName, string newName, string? oldDescription, string? newDescription, bool oldIsActive, bool newIsActive)
+    {
+        var changed = new List<object>();
+        if (!string.Equals(oldName, newName, StringComparison.Ordinal))
+            changed.Add(new { field = "Name", oldValue = oldName, newValue = newName });
+        if (!string.Equals(oldDescription, newDescription, StringComparison.Ordinal))
+            changed.Add(new { field = "Description", oldValue = oldDescription, newValue = newDescription });
+        if (oldIsActive != newIsActive)
+            changed.Add(new { field = "IsActive", oldValue = oldIsActive, newValue = newIsActive });
+        return changed.ToArray();
     }
 }

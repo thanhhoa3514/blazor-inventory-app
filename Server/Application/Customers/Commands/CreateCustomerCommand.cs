@@ -27,12 +27,37 @@ public sealed class CreateCustomerCommand
             Name = normalizedName,
             Description = request.Description?.Trim(),
             IsActive = true,
+            IsDeleted = false,
             CreatedAtUtc = DateTime.UtcNow,
             LastUpdatedUtc = DateTime.UtcNow
         };
 
         await _repo.AddAsync(entity, ct);
-        await _auditLogWriter.WriteAsync("Customer", entity.Id.ToString(), "Created", $"Created customer '{entity.Name}'.", ct);
+        await _auditLogWriter.WriteAsync(
+            "Customer",
+            entity.Id.ToString(),
+            "Created",
+            $"Created customer '{entity.Name}'.",
+            afterState: Snapshot(entity),
+            changedFields: new object[]
+            {
+                new { field = "Name", oldValue = (string?)null, newValue = entity.Name },
+                new { field = "Description", oldValue = (string?)null, newValue = entity.Description },
+                new { field = "IsActive", oldValue = (bool?)null, newValue = entity.IsActive }
+            },
+            ct: ct);
         return new AppResult<CustomerDto>.Ok(entity.ToDto());
     }
+
+    private static object Snapshot(Customer entity) => new
+    {
+        entity.Id,
+        entity.Name,
+        entity.Description,
+        entity.IsActive,
+        entity.IsDeleted,
+        entity.DeletedAtUtc,
+        entity.DeletedByUserName,
+        entity.LastUpdatedUtc
+    };
 }

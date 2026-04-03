@@ -13,6 +13,15 @@ public class Category
     [MaxLength(300)]
     public string? Description { get; set; }
 
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
+
+    [MaxLength(450)]
+    public string? DeletedByUserId { get; set; }
+
+    [MaxLength(256)]
+    public string? DeletedByUserName { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public List<Product> Products { get; set; } = new();

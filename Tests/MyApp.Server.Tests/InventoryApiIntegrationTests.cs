@@ -33,7 +33,7 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
-    public async Task CategoryAndProductLifecycle_AsAdmin_Works()
+    public async Task CategoryAndProductLifecycle_AsAdmin_UsesSoftDelete()
     {
         using var client = CreateClient();
         await LoginAsync(client, "admin", AdminPassword);
@@ -66,8 +66,51 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
         var deleteProduct = await client.DeleteAsync($"/api/products/{product.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleteProduct.StatusCode);
 
+        var products = await client.GetFromJsonAsync<List<ProductDto>>("/api/products");
+        Assert.NotNull(products);
+        Assert.DoesNotContain(products!, x => x.Id == product.Id);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var softDeletedProduct = await db.Products.FirstOrDefaultAsync(x => x.Id == product.Id);
+            Assert.NotNull(softDeletedProduct);
+            Assert.True(softDeletedProduct!.IsDeleted);
+            Assert.False(softDeletedProduct.IsActive);
+
+            var productAudit = await db.AuditLogs.AsNoTracking()
+                .Where(x => x.EntityType == "Product" && x.EntityId == product.Id.ToString())
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+            Assert.NotNull(productAudit);
+            Assert.NotNull(productAudit!.BeforeJson);
+            Assert.NotNull(productAudit.AfterJson);
+            Assert.NotNull(productAudit.ChangedFieldsJson);
+        }
+
         var deleteCategory = await client.DeleteAsync($"/api/categories/{category.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleteCategory.StatusCode);
+
+        var categories = await client.GetFromJsonAsync<List<CategoryDto>>("/api/categories");
+        Assert.NotNull(categories);
+        Assert.DoesNotContain(categories!, x => x.Id == category.Id);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var softDeletedCategory = await db.Categories.FirstOrDefaultAsync(x => x.Id == category.Id);
+            Assert.NotNull(softDeletedCategory);
+            Assert.True(softDeletedCategory!.IsDeleted);
+
+            var categoryAudit = await db.AuditLogs.AsNoTracking()
+                .Where(x => x.EntityType == "Category" && x.EntityId == category.Id.ToString())
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+            Assert.NotNull(categoryAudit);
+            Assert.NotNull(categoryAudit!.BeforeJson);
+            Assert.NotNull(categoryAudit.AfterJson);
+            Assert.NotNull(categoryAudit.ChangedFieldsJson);
+        }
     }
 
     [Fact]
@@ -117,9 +160,69 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
 
         var auditLogs = await client.GetFromJsonAsync<List<AuditLogDto>>("/api/audit-logs?entityType=Supplier&entityId=" + supplier.Id);
         Assert.NotNull(auditLogs);
-        Assert.Contains(auditLogs!, x => x.Action == "Created" && x.ActorUserName == "admin");
-        Assert.Contains(auditLogs!, x => x.Action == "Updated" && x.ActorUserName == "admin");
-        Assert.Contains(auditLogs!, x => x.Action == "Deactivated" && x.ActorUserName == "admin");
+        Assert.Contains(auditLogs!, x => x.Action == "Created" && x.ActorUserName == "admin" && x.AfterJson is not null);
+        Assert.Contains(auditLogs!, x => x.Action == "Updated" && x.ActorUserName == "admin" && x.BeforeJson is not null && x.AfterJson is not null && x.ChangedFieldsJson is not null);
+        Assert.Contains(auditLogs!, x => x.Action == "Deactivated" && x.ActorUserName == "admin" && x.BeforeJson is not null && x.AfterJson is not null && x.ChangedFieldsJson is not null);
+    }
+
+    [Fact]
+    public async Task ProductAndCategoryDelete_AsAdmin_AreSoftDeletes()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var createCategory = await client.PostAsJsonAsync("/api/categories", new CreateCategoryRequest
+        {
+            Name = "Soft Delete Category",
+            Description = "Soft delete integration test"
+        });
+        createCategory.EnsureSuccessStatusCode();
+        var category = await createCategory.Content.ReadFromJsonAsync<CategoryDto>();
+        Assert.NotNull(category);
+
+        var createProduct = await client.PostAsJsonAsync("/api/products", new CreateProductRequest
+        {
+            Sku = "SOFT-001",
+            Name = "Soft Delete Product",
+            CategoryId = category!.Id,
+            ReorderLevel = 1
+        });
+        createProduct.EnsureSuccessStatusCode();
+        var product = await createProduct.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(product);
+
+        var deleteProduct = await client.DeleteAsync($"/api/products/{product!.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteProduct.StatusCode);
+
+        var products = await client.GetFromJsonAsync<List<ProductDto>>("/api/products");
+        Assert.NotNull(products);
+        Assert.DoesNotContain(products!, x => x.Id == product.Id);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var deletedProduct = await db.Products.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == product.Id);
+            Assert.NotNull(deletedProduct);
+            Assert.True(deletedProduct!.IsDeleted);
+            Assert.False(deletedProduct.IsActive);
+
+            var productAudit = await db.AuditLogs.AsNoTracking()
+                .Where(x => x.EntityType == "Product" && x.EntityId == product.Id.ToString())
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync();
+            Assert.NotNull(productAudit);
+            Assert.Equal("Deleted", productAudit!.Action);
+            Assert.NotNull(productAudit.BeforeJson);
+            Assert.NotNull(productAudit.AfterJson);
+            Assert.NotNull(productAudit.ChangedFieldsJson);
+        }
+
+        var deleteCategory = await client.DeleteAsync($"/api/categories/{category.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteCategory.StatusCode);
+
+        var categories = await client.GetFromJsonAsync<List<CategoryDto>>("/api/categories");
+        Assert.NotNull(categories);
+        Assert.DoesNotContain(categories!, x => x.Id == category.Id);
     }
 
     [Fact]
