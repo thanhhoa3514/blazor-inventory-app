@@ -24,6 +24,7 @@ public class StockIssueDetailDto
     public int Id { get; set; }
     public string DocumentNo { get; set; } = string.Empty;
     public DateTime IssuedAtUtc { get; set; }
+    public string CreatedByUserName { get; set; } = string.Empty;
     public int? CustomerId { get; set; }
     public string? Customer { get; set; }
     public string? Note { get; set; }

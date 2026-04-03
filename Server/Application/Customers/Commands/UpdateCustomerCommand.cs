@@ -7,10 +7,12 @@ namespace MyApp.Server.Application.Customers.Commands;
 public sealed class UpdateCustomerCommand
 {
     private readonly ICustomerRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public UpdateCustomerCommand(ICustomerRepository repo)
+    public UpdateCustomerCommand(ICustomerRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<CustomerDto>> ExecuteAsync(int id, UpdateCustomerRequest request, CancellationToken ct = default)
@@ -29,6 +31,7 @@ public sealed class UpdateCustomerCommand
         entity.LastUpdatedUtc = DateTime.UtcNow;
 
         await _repo.SaveChangesAsync(ct);
+        await _auditLogWriter.WriteAsync("Customer", entity.Id.ToString(), "Updated", $"Updated customer '{entity.Name}'.", ct);
         return new AppResult<CustomerDto>.Ok(entity.ToDto());
     }
 }

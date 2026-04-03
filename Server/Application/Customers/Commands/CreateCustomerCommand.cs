@@ -8,10 +8,12 @@ namespace MyApp.Server.Application.Customers.Commands;
 public sealed class CreateCustomerCommand
 {
     private readonly ICustomerRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public CreateCustomerCommand(ICustomerRepository repo)
+    public CreateCustomerCommand(ICustomerRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<CustomerDto>> ExecuteAsync(CreateCustomerRequest request, CancellationToken ct = default)
@@ -30,6 +32,7 @@ public sealed class CreateCustomerCommand
         };
 
         await _repo.AddAsync(entity, ct);
+        await _auditLogWriter.WriteAsync("Customer", entity.Id.ToString(), "Created", $"Created customer '{entity.Name}'.", ct);
         return new AppResult<CustomerDto>.Ok(entity.ToDto());
     }
 }

@@ -6,10 +6,12 @@ namespace MyApp.Server.Application.Customers.Commands;
 public sealed class DeactivateCustomerCommand
 {
     private readonly ICustomerRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public DeactivateCustomerCommand(ICustomerRepository repo)
+    public DeactivateCustomerCommand(ICustomerRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<Unit>> ExecuteAsync(int id, CancellationToken ct = default)
@@ -23,6 +25,7 @@ public sealed class DeactivateCustomerCommand
             entity.IsActive = false;
             entity.LastUpdatedUtc = DateTime.UtcNow;
             await _repo.SaveChangesAsync(ct);
+            await _auditLogWriter.WriteAsync("Customer", entity.Id.ToString(), "Deactivated", $"Deactivated customer '{entity.Name}'.", ct);
         }
 
         return new AppResult<Unit>.Ok(Unit.Value);

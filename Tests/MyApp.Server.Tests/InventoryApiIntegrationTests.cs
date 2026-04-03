@@ -114,6 +114,12 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
         Assert.False(updatedSupplier.IsActive);
         Assert.Equal("Warehouse Customer Updated", updatedCustomer.Name);
         Assert.False(updatedCustomer.IsActive);
+
+        var auditLogs = await client.GetFromJsonAsync<List<AuditLogDto>>("/api/audit-logs?entityType=Supplier&entityId=" + supplier.Id);
+        Assert.NotNull(auditLogs);
+        Assert.Contains(auditLogs!, x => x.Action == "Created" && x.ActorUserName == "admin");
+        Assert.Contains(auditLogs!, x => x.Action == "Updated" && x.ActorUserName == "admin");
+        Assert.Contains(auditLogs!, x => x.Action == "Deactivated" && x.ActorUserName == "admin");
     }
 
     [Fact]
@@ -136,6 +142,9 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
             ]
         });
         createReceipt.EnsureSuccessStatusCode();
+        var createdReceipt = await createReceipt.Content.ReadFromJsonAsync<StockReceiptDetailDto>();
+        Assert.NotNull(createdReceipt);
+        Assert.Equal("staff", createdReceipt!.CreatedByUserName);
 
         var createIssue = await client.PostAsJsonAsync("/api/issues", new CreateStockIssueRequest
         {
@@ -146,6 +155,9 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
             ]
         });
         createIssue.EnsureSuccessStatusCode();
+        var createdIssue = await createIssue.Content.ReadFromJsonAsync<StockIssueDetailDto>();
+        Assert.NotNull(createdIssue);
+        Assert.Equal("staff", createdIssue!.CreatedByUserName);
 
         var summary = await client.GetFromJsonAsync<InventorySummaryDto>("/api/inventory/summary");
         Assert.NotNull(summary);
@@ -282,6 +294,7 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
 
         Assert.NotNull(adjustment);
         Assert.Equal("Cycle count correction", adjustment!.Reason);
+        Assert.Equal("staff", adjustment.CreatedByUserName);
         Assert.Single(adjustment.Lines);
         Assert.Equal("increase", adjustment.Lines[0].Direction);
         Assert.Equal(4, adjustment.Lines[0].Quantity);

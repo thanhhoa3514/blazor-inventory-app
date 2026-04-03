@@ -7,10 +7,12 @@ namespace MyApp.Server.Application.Categories.Commands;
 public sealed class UpdateCategoryCommand
 {
     private readonly ICategoryRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public UpdateCategoryCommand(ICategoryRepository repo)
+    public UpdateCategoryCommand(ICategoryRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<CategoryDto>> ExecuteAsync(int id, UpdateCategoryRequest request, CancellationToken ct = default)
@@ -27,6 +29,7 @@ public sealed class UpdateCategoryCommand
         entity.Description = request.Description?.Trim();
 
         await _repo.SaveChangesAsync(ct);
+        await _auditLogWriter.WriteAsync("Category", entity.Id.ToString(), "Updated", $"Updated category '{entity.Name}'.", ct);
         return new AppResult<CategoryDto>.Ok(entity.ToDto());
     }
 }

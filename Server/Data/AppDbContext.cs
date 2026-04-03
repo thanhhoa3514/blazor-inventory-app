@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<StockReceipt> StockReceipts => Set<StockReceipt>();
     public DbSet<StockReceiptLine> StockReceiptLines => Set<StockReceiptLine>();
     public DbSet<StockIssue> StockIssues => Set<StockIssue>();
@@ -76,6 +77,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
             entity.Property(x => x.Description).HasMaxLength(500);
             entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("AuditLogs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EntityType).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.EntityId).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.Action).IsRequired().HasMaxLength(50);
+            entity.Property(x => x.ActorUserId).HasMaxLength(450);
+            entity.Property(x => x.ActorUserName).IsRequired().HasMaxLength(256);
+            entity.Property(x => x.Summary).IsRequired().HasMaxLength(500);
+            entity.HasIndex(x => new { x.EntityType, x.EntityId, x.OccurredAtUtc });
+            entity.HasIndex(x => x.OccurredAtUtc);
         });
 
         modelBuilder.Entity<StockReceipt>(entity =>

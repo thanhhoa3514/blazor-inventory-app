@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MyApp.Server.Application.Audit.Queries;
 using MyApp.Server.Application.Categories.Commands;
 using MyApp.Server.Application.Categories.Queries;
+using MyApp.Server.Application.Common;
 using MyApp.Server.Application.Customers.Commands;
 using MyApp.Server.Application.Customers.Queries;
 using MyApp.Server.Application.Inventory.Commands;
@@ -12,6 +14,7 @@ using MyApp.Server.Application.Suppliers.Commands;
 using MyApp.Server.Application.Suppliers.Queries;
 using MyApp.Server.Auth;
 using MyApp.Server.Data;
+using MyApp.Server.Persistence.Auditing;
 using MyApp.Server.Persistence.Repositories;
 using MyApp.Shared.Security;
 
@@ -21,6 +24,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -84,11 +88,14 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IStockReceiptRepository, StockReceiptRepository>();
 builder.Services.AddScoped<IStockIssueRepository, StockIssueRepository>();
 builder.Services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
 builder.Services.AddScoped<IInventoryReadRepository, InventoryReadRepository>();
 builder.Services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();
+builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
+builder.Services.AddScoped<IAuditLogWriter, AuditLogWriter>();
 
 // Category use cases
 builder.Services.AddScoped<GetAllCategoriesQuery>();
@@ -123,6 +130,9 @@ builder.Services.AddScoped<CreateReceiptCommand>();
 builder.Services.AddScoped<CreateIssueCommand>();
 builder.Services.AddScoped<CreateAdjustmentCommand>();
 builder.Services.AddScoped<GetProductStockCardQuery>();
+
+// Audit queries
+builder.Services.AddScoped<GetAuditLogsQuery>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();

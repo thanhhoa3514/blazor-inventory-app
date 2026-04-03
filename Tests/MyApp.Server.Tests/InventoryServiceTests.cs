@@ -150,15 +150,15 @@ public class InventoryCommandTests
 
     private static CreateReceiptCommand BuildReceiptCommand(AppDbContext db)
         => new(new InventoryUnitOfWork(db), new ProductRepository(db), new SupplierRepository(db),
-               new StockReceiptRepository(db), NullLogger<CreateReceiptCommand>.Instance);
+               new StockReceiptRepository(db), new StaticCurrentUserAccessor(), NullLogger<CreateReceiptCommand>.Instance);
 
     private static CreateIssueCommand BuildIssueCommand(AppDbContext db)
         => new(new InventoryUnitOfWork(db), new ProductRepository(db), new CustomerRepository(db),
-               new StockIssueRepository(db), NullLogger<CreateIssueCommand>.Instance);
+               new StockIssueRepository(db), new StaticCurrentUserAccessor(), NullLogger<CreateIssueCommand>.Instance);
 
     private static CreateAdjustmentCommand BuildAdjustmentCommand(AppDbContext db)
         => new(new InventoryUnitOfWork(db), new ProductRepository(db),
-               new StockAdjustmentRepository(db), NullLogger<CreateAdjustmentCommand>.Instance);
+               new StockAdjustmentRepository(db), new StaticCurrentUserAccessor(), NullLogger<CreateAdjustmentCommand>.Instance);
 
     private static async Task<AppDbContext> CreateContextAsync()
     {

@@ -8,10 +8,12 @@ namespace MyApp.Server.Application.Suppliers.Commands;
 public sealed class CreateSupplierCommand
 {
     private readonly ISupplierRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public CreateSupplierCommand(ISupplierRepository repo)
+    public CreateSupplierCommand(ISupplierRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<SupplierDto>> ExecuteAsync(CreateSupplierRequest request, CancellationToken ct = default)
@@ -30,6 +32,7 @@ public sealed class CreateSupplierCommand
         };
 
         await _repo.AddAsync(entity, ct);
+        await _auditLogWriter.WriteAsync("Supplier", entity.Id.ToString(), "Created", $"Created supplier '{entity.Name}'.", ct);
         return new AppResult<SupplierDto>.Ok(entity.ToDto());
     }
 }

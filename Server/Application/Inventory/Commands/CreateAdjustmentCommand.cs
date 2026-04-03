@@ -10,17 +10,20 @@ public sealed class CreateAdjustmentCommand
     private readonly IInventoryUnitOfWork _uow;
     private readonly IProductRepository _products;
     private readonly IStockAdjustmentRepository _adjustments;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<CreateAdjustmentCommand> _logger;
 
     public CreateAdjustmentCommand(
         IInventoryUnitOfWork uow,
         IProductRepository products,
         IStockAdjustmentRepository adjustments,
+        ICurrentUserAccessor currentUserAccessor,
         ILogger<CreateAdjustmentCommand> logger)
     {
         _uow = uow;
         _products = products;
         _adjustments = adjustments;
+        _currentUserAccessor = currentUserAccessor;
         _logger = logger;
     }
 
@@ -38,10 +41,14 @@ public sealed class CreateAdjustmentCommand
         await _uow.BeginTransactionAsync(ct);
         try
         {
+            var currentUser = _currentUserAccessor.GetRequiredCurrentUser();
+
             var adjustment = new StockAdjustment
             {
                 DocumentNo = documentNo,
                 Reason = request.Reason.Trim(),
+                CreatedByUserId = currentUser.UserId,
+                CreatedByUserName = currentUser.UserName,
                 Note = request.Note?.Trim(),
                 AdjustedAtUtc = now
             };

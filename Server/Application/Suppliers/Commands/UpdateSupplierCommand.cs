@@ -7,10 +7,12 @@ namespace MyApp.Server.Application.Suppliers.Commands;
 public sealed class UpdateSupplierCommand
 {
     private readonly ISupplierRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public UpdateSupplierCommand(ISupplierRepository repo)
+    public UpdateSupplierCommand(ISupplierRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<SupplierDto>> ExecuteAsync(int id, UpdateSupplierRequest request, CancellationToken ct = default)
@@ -29,6 +31,7 @@ public sealed class UpdateSupplierCommand
         entity.LastUpdatedUtc = DateTime.UtcNow;
 
         await _repo.SaveChangesAsync(ct);
+        await _auditLogWriter.WriteAsync("Supplier", entity.Id.ToString(), "Updated", $"Updated supplier '{entity.Name}'.", ct);
         return new AppResult<SupplierDto>.Ok(entity.ToDto());
     }
 }

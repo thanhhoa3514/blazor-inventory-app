@@ -38,6 +38,7 @@ public sealed class StockIssueRepository : IStockIssueRepository
                 Id = x.Id,
                 DocumentNo = x.DocumentNo,
                 IssuedAtUtc = x.IssuedAtUtc,
+                CreatedByUserName = x.CreatedByUserName,
                 CustomerId = x.CustomerId,
                 Customer = x.Customer != null ? x.Customer.Name : null,
                 Note = x.Note,

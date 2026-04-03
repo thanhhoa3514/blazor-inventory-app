@@ -38,6 +38,7 @@ public sealed class StockReceiptRepository : IStockReceiptRepository
                 Id = x.Id,
                 DocumentNo = x.DocumentNo,
                 ReceivedAtUtc = x.ReceivedAtUtc,
+                CreatedByUserName = x.CreatedByUserName,
                 SupplierId = x.SupplierId,
                 Supplier = x.Supplier != null ? x.Supplier.Name : null,
                 Note = x.Note,

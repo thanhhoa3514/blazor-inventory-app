@@ -8,10 +8,12 @@ namespace MyApp.Server.Application.Products.Commands;
 public sealed class CreateProductCommand
 {
     private readonly IProductRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public CreateProductCommand(IProductRepository repo)
+    public CreateProductCommand(IProductRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<ProductDto>> ExecuteAsync(CreateProductRequest request, CancellationToken ct = default)
@@ -38,6 +40,7 @@ public sealed class CreateProductCommand
         };
 
         await _repo.AddAsync(entity, ct);
+        await _auditLogWriter.WriteAsync("Product", entity.Id.ToString(), "Created", $"Created product '{entity.Sku} - {entity.Name}'.", ct);
 
         var dto = await _repo.GetByIdAsync(entity.Id, ct);
         return new AppResult<ProductDto>.Ok(dto!);

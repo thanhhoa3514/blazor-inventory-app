@@ -6,10 +6,12 @@ namespace MyApp.Server.Application.Suppliers.Commands;
 public sealed class DeactivateSupplierCommand
 {
     private readonly ISupplierRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public DeactivateSupplierCommand(ISupplierRepository repo)
+    public DeactivateSupplierCommand(ISupplierRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<Unit>> ExecuteAsync(int id, CancellationToken ct = default)
@@ -23,6 +25,7 @@ public sealed class DeactivateSupplierCommand
             entity.IsActive = false;
             entity.LastUpdatedUtc = DateTime.UtcNow;
             await _repo.SaveChangesAsync(ct);
+            await _auditLogWriter.WriteAsync("Supplier", entity.Id.ToString(), "Deactivated", $"Deactivated supplier '{entity.Name}'.", ct);
         }
 
         return new AppResult<Unit>.Ok(Unit.Value);

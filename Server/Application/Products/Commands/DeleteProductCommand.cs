@@ -7,11 +7,13 @@ namespace MyApp.Server.Application.Products.Commands;
 public sealed class DeleteProductCommand
 {
     private readonly IProductRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
     private readonly ILogger<DeleteProductCommand> _logger;
 
-    public DeleteProductCommand(IProductRepository repo, ILogger<DeleteProductCommand> logger)
+    public DeleteProductCommand(IProductRepository repo, IAuditLogWriter auditLogWriter, ILogger<DeleteProductCommand> logger)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
         _logger = logger;
     }
 
@@ -25,6 +27,7 @@ public sealed class DeleteProductCommand
             return new AppResult<Unit>.Conflict("Cannot delete product with transaction history.");
 
         await _repo.DeleteAsync(entity, ct);
+        await _auditLogWriter.WriteAsync("Product", id.ToString(), "Deleted", $"Deleted product '{entity.Sku} - {entity.Name}'.", ct);
         _logger.LogInformation("Deleted product {ProductId} ({Sku}).", entity.Id, entity.Sku);
         return new AppResult<Unit>.Ok(Unit.Value);
     }

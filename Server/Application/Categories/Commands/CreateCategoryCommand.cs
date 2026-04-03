@@ -8,10 +8,12 @@ namespace MyApp.Server.Application.Categories.Commands;
 public sealed class CreateCategoryCommand
 {
     private readonly ICategoryRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public CreateCategoryCommand(ICategoryRepository repo)
+    public CreateCategoryCommand(ICategoryRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<CategoryDto>> ExecuteAsync(CreateCategoryRequest request, CancellationToken ct = default)
@@ -29,6 +31,7 @@ public sealed class CreateCategoryCommand
         };
 
         await _repo.AddAsync(entity, ct);
+        await _auditLogWriter.WriteAsync("Category", entity.Id.ToString(), "Created", $"Created category '{entity.Name}'.", ct);
         return new AppResult<CategoryDto>.Ok(entity.ToDto());
     }
 }

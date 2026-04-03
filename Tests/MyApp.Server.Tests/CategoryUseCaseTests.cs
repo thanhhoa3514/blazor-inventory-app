@@ -21,7 +21,7 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var cmd = new CreateCategoryCommand(repo);
+        var cmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
 
         await cmd.ExecuteAsync(new CreateCategoryRequest { Name = "Electronics" });
         var result = await cmd.ExecuteAsync(new CreateCategoryRequest { Name = "Electronics" });
@@ -34,7 +34,7 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var cmd = new CreateCategoryCommand(repo);
+        var cmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var result = await cmd.ExecuteAsync(new CreateCategoryRequest { Name = "  Furniture  " });
 
@@ -47,8 +47,8 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var createCmd = new CreateCategoryCommand(repo);
-        var updateCmd = new UpdateCategoryCommand(repo);
+        var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
+        var updateCmd = new UpdateCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var first = (AppResult<CategoryDto>.Ok)await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Furniture" });
         await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Hardware" });
@@ -63,8 +63,8 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var createCmd = new CreateCategoryCommand(repo);
-        var updateCmd = new UpdateCategoryCommand(repo);
+        var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
+        var updateCmd = new UpdateCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var first = (AppResult<CategoryDto>.Ok)await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Furniture" });
 
@@ -79,7 +79,7 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var updateCmd = new UpdateCategoryCommand(repo);
+        var updateCmd = new UpdateCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var result = await updateCmd.ExecuteAsync(9999, new UpdateCategoryRequest { Name = "Ghost" });
 
@@ -93,8 +93,8 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var createCmd = new CreateCategoryCommand(repo);
-        var deleteCmd = new DeleteCategoryCommand(repo);
+        var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var catResult = (AppResult<CategoryDto>.Ok)await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Busy" });
         int catId = catResult.Value.Id;
@@ -121,8 +121,8 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var createCmd = new CreateCategoryCommand(repo);
-        var deleteCmd = new DeleteCategoryCommand(repo);
+        var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var catResult = (AppResult<CategoryDto>.Ok)await createCmd.ExecuteAsync(new CreateCategoryRequest { Name = "Empty" });
 
@@ -136,7 +136,7 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var deleteCmd = new DeleteCategoryCommand(repo);
+        var deleteCmd = new DeleteCategoryCommand(repo, new NoOpAuditLogWriter());
 
         var result = await deleteCmd.ExecuteAsync(9999);
 
@@ -150,7 +150,7 @@ public class CategoryUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new CategoryRepository(db);
-        var createCmd = new CreateCategoryCommand(repo);
+        var createCmd = new CreateCategoryCommand(repo, new NoOpAuditLogWriter());
         var query = new GetAllCategoriesQuery(repo);
 
         // Seeded DB already has "Electronics" and "Office Supplies".

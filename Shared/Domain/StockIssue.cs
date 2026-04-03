@@ -16,6 +16,13 @@ public class StockIssue
     public int? CustomerId { get; set; }
     public Customer? Customer { get; set; }
 
+    [MaxLength(450)]
+    public string? CreatedByUserId { get; set; }
+
+    [Required]
+    [MaxLength(256)]
+    public string CreatedByUserName { get; set; } = string.Empty;
+
     [MaxLength(500)]
     public string? Note { get; set; }
 

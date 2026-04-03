@@ -17,6 +17,13 @@ public class StockAdjustment
     [MaxLength(200)]
     public string Reason { get; set; } = string.Empty;
 
+    [MaxLength(450)]
+    public string? CreatedByUserId { get; set; }
+
+    [Required]
+    [MaxLength(256)]
+    public string CreatedByUserName { get; set; } = string.Empty;
+
     [MaxLength(500)]
     public string? Note { get; set; }
 

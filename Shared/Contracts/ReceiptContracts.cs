@@ -24,6 +24,7 @@ public class StockReceiptDetailDto
     public int Id { get; set; }
     public string DocumentNo { get; set; } = string.Empty;
     public DateTime ReceivedAtUtc { get; set; }
+    public string CreatedByUserName { get; set; } = string.Empty;
     public int? SupplierId { get; set; }
     public string? Supplier { get; set; }
     public string? Note { get; set; }

@@ -35,6 +35,7 @@ public sealed class StockAdjustmentRepository : IStockAdjustmentRepository
                 Id = x.Id,
                 DocumentNo = x.DocumentNo,
                 AdjustedAtUtc = x.AdjustedAtUtc,
+                CreatedByUserName = x.CreatedByUserName,
                 Reason = x.Reason,
                 Note = x.Note,
                 TotalAmount = x.TotalAmount,

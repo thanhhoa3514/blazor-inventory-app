@@ -6,10 +6,12 @@ namespace MyApp.Server.Application.Categories.Commands;
 public sealed class DeleteCategoryCommand
 {
     private readonly ICategoryRepository _repo;
+    private readonly IAuditLogWriter _auditLogWriter;
 
-    public DeleteCategoryCommand(ICategoryRepository repo)
+    public DeleteCategoryCommand(ICategoryRepository repo, IAuditLogWriter auditLogWriter)
     {
         _repo = repo;
+        _auditLogWriter = auditLogWriter;
     }
 
     public async Task<AppResult<Unit>> ExecuteAsync(int id, CancellationToken ct = default)
@@ -22,6 +24,7 @@ public sealed class DeleteCategoryCommand
             return new AppResult<Unit>.Conflict("Cannot delete category while products exist.");
 
         await _repo.DeleteAsync(entity, ct);
+        await _auditLogWriter.WriteAsync("Category", id.ToString(), "Deleted", $"Deleted category '{entity.Name}'.", ct);
         return new AppResult<Unit>.Ok(Unit.Value);
     }
 }

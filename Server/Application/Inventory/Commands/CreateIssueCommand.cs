@@ -11,6 +11,7 @@ public sealed class CreateIssueCommand
     private readonly IProductRepository _products;
     private readonly ICustomerRepository _customers;
     private readonly IStockIssueRepository _issues;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<CreateIssueCommand> _logger;
 
     public CreateIssueCommand(
@@ -18,12 +19,14 @@ public sealed class CreateIssueCommand
         IProductRepository products,
         ICustomerRepository customers,
         IStockIssueRepository issues,
+        ICurrentUserAccessor currentUserAccessor,
         ILogger<CreateIssueCommand> logger)
     {
         _uow = uow;
         _products = products;
         _customers = customers;
         _issues = issues;
+        _currentUserAccessor = currentUserAccessor;
         _logger = logger;
     }
 
@@ -41,6 +44,8 @@ public sealed class CreateIssueCommand
         await _uow.BeginTransactionAsync(ct);
         try
         {
+            var currentUser = _currentUserAccessor.GetRequiredCurrentUser();
+
             Customer? customer = null;
             if (request.CustomerId.HasValue)
             {
@@ -57,6 +62,8 @@ public sealed class CreateIssueCommand
             {
                 DocumentNo = documentNo,
                 CustomerId = customer?.Id,
+                CreatedByUserId = currentUser.UserId,
+                CreatedByUserName = currentUser.UserName,
                 Note = request.Note?.Trim(),
                 IssuedAtUtc = now
             };

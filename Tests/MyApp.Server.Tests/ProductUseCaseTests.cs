@@ -21,7 +21,7 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new ProductRepository(db);
-        var cmd = new CreateProductCommand(repo);
+        var cmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
 
         var result = await cmd.ExecuteAsync(new CreateProductRequest
         {
@@ -39,8 +39,8 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var createCmd = new CreateProductCommand(repo);
-        var updateCmd = new UpdateProductCommand(repo);
+        var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+        var updateCmd = new UpdateProductCommand(repo, new NoOpAuditLogWriter());
 
         var created = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
         {
@@ -69,7 +69,7 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var cmd = new CreateProductCommand(repo);
+        var cmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
 
         await cmd.ExecuteAsync(new CreateProductRequest { Sku = "SKU-001", Name = "First", CategoryId = catId, ReorderLevel = 5 });
         var result = await cmd.ExecuteAsync(new CreateProductRequest { Sku = "SKU-001", Name = "Second", CategoryId = catId, ReorderLevel = 5 });
@@ -82,7 +82,7 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var cmd = new CreateProductCommand(repo);
+        var cmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
 
         var result = await cmd.ExecuteAsync(new CreateProductRequest
         {
@@ -101,8 +101,8 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var createCmd = new CreateProductCommand(repo);
-        var updateCmd = new UpdateProductCommand(repo);
+        var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+        var updateCmd = new UpdateProductCommand(repo, new NoOpAuditLogWriter());
 
         await createCmd.ExecuteAsync(new CreateProductRequest { Sku = "TAKEN", Name = "Taken", CategoryId = catId, ReorderLevel = 5 });
         var second = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest { Sku = "MINE", Name = "Mine", CategoryId = catId, ReorderLevel = 5 });
@@ -126,8 +126,8 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var createCmd = new CreateProductCommand(repo);
-        var deleteCmd = new DeleteProductCommand(repo, NullLogger<DeleteProductCommand>.Instance);
+        var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), NullLogger<DeleteProductCommand>.Instance);
 
         var product = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
         {
@@ -137,7 +137,7 @@ public class ProductUseCaseTests
             ReorderLevel = 5
         });
 
-        var receipt = new StockReceipt { DocumentNo = "REC-001", ReceivedAtUtc = DateTime.UtcNow };
+        var receipt = new StockReceipt { DocumentNo = "REC-001", CreatedByUserName = "seed.user", ReceivedAtUtc = DateTime.UtcNow };
         db.StockReceipts.Add(receipt);
         await db.SaveChangesAsync();
 
@@ -161,8 +161,8 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var createCmd = new CreateProductCommand(repo);
-        var deleteCmd = new DeleteProductCommand(repo, NullLogger<DeleteProductCommand>.Instance);
+        var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), NullLogger<DeleteProductCommand>.Instance);
 
         var product = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
         {
@@ -182,7 +182,7 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var repo = new ProductRepository(db);
-        var deleteCmd = new DeleteProductCommand(repo, NullLogger<DeleteProductCommand>.Instance);
+        var deleteCmd = new DeleteProductCommand(repo, new NoOpAuditLogWriter(), NullLogger<DeleteProductCommand>.Instance);
 
         var result = await deleteCmd.ExecuteAsync(9999);
 
@@ -208,7 +208,7 @@ public class ProductUseCaseTests
     {
         await using var db = await CreateContextAsync();
         var (repo, catId) = await CreateRepoWithCategoryAsync(db);
-        var cmd = new CreateProductCommand(repo);
+        var cmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
 
         var result = await cmd.ExecuteAsync(new CreateProductRequest
         {

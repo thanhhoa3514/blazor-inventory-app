@@ -24,6 +24,7 @@ else
         <MudGrid>
             <MudItem xs="12" md="6"><MudText><b>Document:</b> @_item.DocumentNo</MudText></MudItem>
             <MudItem xs="12" md="6"><MudText><b>Date:</b> @_item.ReceivedAtUtc.ToLocalTime().ToString("g")</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Created By:</b> @_item.CreatedByUserName</MudText></MudItem>
             <MudItem xs="12" md="6"><MudText><b>Supplier:</b> @_item.Supplier</MudText></MudItem>
             <MudItem xs="12" md="6"><MudText><b>Total:</b> @_item.TotalAmount.ToString("C")</MudText></MudItem>
             <MudItem xs="12"><MudText><b>Note:</b> @_item.Note</MudText></MudItem>

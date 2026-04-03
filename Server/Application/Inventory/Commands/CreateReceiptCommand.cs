@@ -11,6 +11,7 @@ public sealed class CreateReceiptCommand
     private readonly IProductRepository _products;
     private readonly ISupplierRepository _suppliers;
     private readonly IStockReceiptRepository _receipts;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly ILogger<CreateReceiptCommand> _logger;
 
     public CreateReceiptCommand(
@@ -18,12 +19,14 @@ public sealed class CreateReceiptCommand
         IProductRepository products,
         ISupplierRepository suppliers,
         IStockReceiptRepository receipts,
+        ICurrentUserAccessor currentUserAccessor,
         ILogger<CreateReceiptCommand> logger)
     {
         _uow = uow;
         _products = products;
         _suppliers = suppliers;
         _receipts = receipts;
+        _currentUserAccessor = currentUserAccessor;
         _logger = logger;
     }
 
@@ -41,6 +44,8 @@ public sealed class CreateReceiptCommand
         await _uow.BeginTransactionAsync(ct);
         try
         {
+            var currentUser = _currentUserAccessor.GetRequiredCurrentUser();
+
             Supplier? supplier = null;
             if (request.SupplierId.HasValue)
             {
@@ -57,6 +62,8 @@ public sealed class CreateReceiptCommand
             {
                 DocumentNo = documentNo,
                 SupplierId = supplier?.Id,
+                CreatedByUserId = currentUser.UserId,
+                CreatedByUserName = currentUser.UserName,
                 Note = request.Note?.Trim(),
                 ReceivedAtUtc = now
             };

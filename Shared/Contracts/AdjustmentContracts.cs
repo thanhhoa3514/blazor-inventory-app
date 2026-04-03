@@ -30,6 +30,7 @@ public class StockAdjustmentDetailDto
     public int Id { get; set; }
     public string DocumentNo { get; set; } = string.Empty;
     public DateTime AdjustedAtUtc { get; set; }
+    public string CreatedByUserName { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public string? Note { get; set; }
     public decimal TotalAmount { get; set; }
