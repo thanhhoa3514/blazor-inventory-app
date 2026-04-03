@@ -9,6 +9,7 @@ public sealed class ProductEditorModel
     public string? Description { get; set; }
     public int CategoryId { get; set; }
     public int ReorderLevel { get; set; } = 5;
+    public int TargetStockLevel { get; set; } = 10;
     public bool IsActive { get; set; } = true;
 
     public CreateProductRequest ToCreateRequest() => new()
@@ -17,7 +18,8 @@ public sealed class ProductEditorModel
         Name = Name,
         Description = Description,
         CategoryId = CategoryId,
-        ReorderLevel = ReorderLevel
+        ReorderLevel = ReorderLevel,
+        TargetStockLevel = TargetStockLevel
     };
 
     public UpdateProductRequest ToUpdateRequest() => new()
@@ -27,6 +29,7 @@ public sealed class ProductEditorModel
         Description = Description,
         CategoryId = CategoryId,
         ReorderLevel = ReorderLevel,
+        TargetStockLevel = TargetStockLevel,
         IsActive = IsActive
     };
 
@@ -37,6 +40,7 @@ public sealed class ProductEditorModel
         Description = null;
         CategoryId = 0;
         ReorderLevel = 5;
+        TargetStockLevel = 10;
         IsActive = true;
     }
 
@@ -47,6 +51,7 @@ public sealed class ProductEditorModel
         Description = item.Description;
         CategoryId = item.CategoryId;
         ReorderLevel = item.ReorderLevel;
+        TargetStockLevel = item.TargetStockLevel;
         IsActive = item.IsActive;
     }
 }

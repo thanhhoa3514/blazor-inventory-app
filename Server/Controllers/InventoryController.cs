@@ -15,11 +15,16 @@ public class InventoryController : ControllerBase
 {
     private readonly IProductRepository _products;
     private readonly GetProductStockCardQuery _getStockCard;
+    private readonly GetReorderRecommendationsQuery _getReorderRecommendations;
 
-    public InventoryController(IProductRepository products, GetProductStockCardQuery getStockCard)
+    public InventoryController(
+        IProductRepository products,
+        GetProductStockCardQuery getStockCard,
+        GetReorderRecommendationsQuery getReorderRecommendations)
     {
         _products = products;
         _getStockCard = getStockCard;
+        _getReorderRecommendations = getReorderRecommendations;
     }
 
     [HttpGet("summary")]
@@ -68,4 +73,12 @@ public class InventoryController : ControllerBase
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }
+
+    [HttpGet("reorder-recommendations")]
+    public async Task<ActionResult<IEnumerable<ReorderRecommendationDto>>> GetReorderRecommendations(
+        [FromQuery] string? search,
+        [FromQuery] int? categoryId,
+        [FromQuery] string? priority,
+        CancellationToken cancellationToken)
+        => Ok(await _getReorderRecommendations.ExecuteAsync(search, categoryId, priority, cancellationToken));
 }

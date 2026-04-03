@@ -21,6 +21,9 @@ else if (_summary is null)
 else
 {
     <InventorySummaryCards Summary="_summary" />
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/reorder-recommendations" Class="mb-4">
+        Open Reorder Recommendations
+    </MudButton>
     <LowStockTable Items="_summary.LowStockItems" />
 }
 

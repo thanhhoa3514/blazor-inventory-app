@@ -31,7 +31,11 @@
                         <MudNumericField T="int" Label="Reorder" Variant="Variant.Outlined" Min="0"
                                          @bind-Value="Model.ReorderLevel" For="@(() => Model.ReorderLevel)" />
                     </MudItem>
-                    <MudItem xs="6" md="1" Class="d-flex align-end">
+                    <MudItem xs="6" md="1">
+                        <MudNumericField T="int" Label="Target" Variant="Variant.Outlined" Min="0"
+                                         @bind-Value="Model.TargetStockLevel" For="@(() => Model.TargetStockLevel)" />
+                    </MudItem>
+                    <MudItem xs="12" md="1" Class="d-flex align-end">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="@IsSubmitting"
                                    OnClick="SubmitAsync">
                             @(IsSubmitting ? "..." : (IsEditing ? "Update" : "Create"))

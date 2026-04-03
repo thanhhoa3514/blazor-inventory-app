@@ -28,10 +28,14 @@ public sealed class UpdateProductCommand
         var oldDescription = entity.Description;
         var oldCategoryId = entity.CategoryId;
         var oldReorderLevel = entity.ReorderLevel;
+        var oldTargetStockLevel = entity.TargetStockLevel;
         var oldIsActive = entity.IsActive;
 
         if (!await _repo.CategoryExistsAsync(request.CategoryId, ct))
             return new AppResult<ProductDto>.ValidationError("Category does not exist.");
+
+        if (request.TargetStockLevel < request.ReorderLevel)
+            return new AppResult<ProductDto>.ValidationError("Target stock level must be greater than or equal to reorder level.");
 
         var normalizedSku = request.Sku.Trim().ToUpperInvariant();
         if (await _repo.ExistsBySkuAsync(normalizedSku, excludeId: id, ct))
@@ -42,6 +46,7 @@ public sealed class UpdateProductCommand
         entity.Description = request.Description?.Trim();
         entity.CategoryId = request.CategoryId;
         entity.ReorderLevel = request.ReorderLevel;
+        entity.TargetStockLevel = request.TargetStockLevel;
         entity.IsActive = request.IsActive;
         entity.LastUpdatedUtc = DateTime.UtcNow;
 
@@ -53,7 +58,7 @@ public sealed class UpdateProductCommand
             $"Updated product '{entity.Sku} - {entity.Name}'.",
             beforeState: before,
             afterState: Snapshot(entity),
-            changedFields: BuildChangedFields(oldSku, oldName, oldDescription, oldCategoryId, oldReorderLevel, oldIsActive, entity),
+            changedFields: BuildChangedFields(oldSku, oldName, oldDescription, oldCategoryId, oldReorderLevel, oldTargetStockLevel, oldIsActive, entity),
             ct: ct);
 
         var dto = await _repo.GetByIdAsync(id, ct);
@@ -70,6 +75,7 @@ public sealed class UpdateProductCommand
         entity.OnHandQty,
         entity.AverageCost,
         entity.ReorderLevel,
+        entity.TargetStockLevel,
         entity.IsActive,
         entity.IsDeleted,
         entity.DeletedAtUtc,
@@ -83,6 +89,7 @@ public sealed class UpdateProductCommand
         string? oldDescription,
         int oldCategoryId,
         int oldReorderLevel,
+        int oldTargetStockLevel,
         bool oldIsActive,
         Product entity)
     {
@@ -97,6 +104,8 @@ public sealed class UpdateProductCommand
             changed.Add(new { field = "CategoryId", oldValue = oldCategoryId, newValue = entity.CategoryId });
         if (oldReorderLevel != entity.ReorderLevel)
             changed.Add(new { field = "ReorderLevel", oldValue = oldReorderLevel, newValue = entity.ReorderLevel });
+        if (oldTargetStockLevel != entity.TargetStockLevel)
+            changed.Add(new { field = "TargetStockLevel", oldValue = oldTargetStockLevel, newValue = entity.TargetStockLevel });
         if (oldIsActive != entity.IsActive)
             changed.Add(new { field = "IsActive", oldValue = oldIsActive, newValue = entity.IsActive });
         return changed.ToArray();

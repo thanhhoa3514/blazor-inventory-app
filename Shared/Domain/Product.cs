@@ -27,6 +27,7 @@ public class Product
     public decimal AverageCost { get; set; }
 
     public int ReorderLevel { get; set; } = 5;
+    public int TargetStockLevel { get; set; } = 10;
     public bool IsActive { get; set; } = true;
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAtUtc { get; set; }

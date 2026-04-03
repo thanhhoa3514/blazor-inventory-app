@@ -16,6 +16,7 @@ public static class ProductMapper
             entity.OnHandQty,
             entity.AverageCost,
             entity.ReorderLevel,
+            entity.TargetStockLevel,
             entity.IsActive,
             entity.IsDeleted,
             entity.LastUpdatedUtc);

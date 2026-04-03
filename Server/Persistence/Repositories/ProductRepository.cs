@@ -29,6 +29,7 @@ public sealed class ProductRepository : IProductRepository
                 x.OnHandQty,
                 x.AverageCost,
                 x.ReorderLevel,
+                x.TargetStockLevel,
                 x.IsActive,
                 x.IsDeleted,
                 x.LastUpdatedUtc))
@@ -49,6 +50,7 @@ public sealed class ProductRepository : IProductRepository
                 x.OnHandQty,
                 x.AverageCost,
                 x.ReorderLevel,
+                x.TargetStockLevel,
                 x.IsActive,
                 x.IsDeleted,
                 x.LastUpdatedUtc))
@@ -69,6 +71,7 @@ public sealed class ProductRepository : IProductRepository
                 x.OnHandQty,
                 x.AverageCost,
                 x.ReorderLevel,
+                x.TargetStockLevel,
                 x.IsActive,
                 x.IsDeleted,
                 x.LastUpdatedUtc))

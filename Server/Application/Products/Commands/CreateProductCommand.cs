@@ -21,6 +21,9 @@ public sealed class CreateProductCommand
         if (!await _repo.CategoryExistsAsync(request.CategoryId, ct))
             return new AppResult<ProductDto>.ValidationError("Category does not exist.");
 
+        if (request.TargetStockLevel < request.ReorderLevel)
+            return new AppResult<ProductDto>.ValidationError("Target stock level must be greater than or equal to reorder level.");
+
         var normalizedSku = request.Sku.Trim().ToUpperInvariant();
         if (await _repo.ExistsBySkuAsync(normalizedSku, excludeId: null, ct))
             return new AppResult<ProductDto>.Conflict("Product SKU must be unique.");
@@ -32,6 +35,7 @@ public sealed class CreateProductCommand
             Description = request.Description?.Trim(),
             CategoryId = request.CategoryId,
             ReorderLevel = request.ReorderLevel,
+            TargetStockLevel = request.TargetStockLevel,
             OnHandQty = 0,
             AverageCost = 0,
             IsActive = true,
@@ -52,7 +56,8 @@ public sealed class CreateProductCommand
                 new { field = "Sku", oldValue = (string?)null, newValue = entity.Sku },
                 new { field = "Name", oldValue = (string?)null, newValue = entity.Name },
                 new { field = "CategoryId", oldValue = (int?)null, newValue = entity.CategoryId },
-                new { field = "ReorderLevel", oldValue = (int?)null, newValue = entity.ReorderLevel }
+                new { field = "ReorderLevel", oldValue = (int?)null, newValue = entity.ReorderLevel },
+                new { field = "TargetStockLevel", oldValue = (int?)null, newValue = entity.TargetStockLevel }
             },
             ct: ct);
 
@@ -70,6 +75,7 @@ public sealed class CreateProductCommand
         entity.OnHandQty,
         entity.AverageCost,
         entity.ReorderLevel,
+        entity.TargetStockLevel,
         entity.IsActive,
         entity.IsDeleted,
         entity.DeletedAtUtc,

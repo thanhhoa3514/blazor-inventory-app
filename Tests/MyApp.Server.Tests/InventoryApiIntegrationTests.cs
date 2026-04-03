@@ -441,6 +441,56 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task ReorderRecommendations_ReturnExpectedItemsAndFilters()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var createCategory = await client.PostAsJsonAsync("/api/categories", new CreateCategoryRequest
+        {
+            Name = "Reorder Category",
+            Description = "Recommendation integration test"
+        });
+        createCategory.EnsureSuccessStatusCode();
+        var category = await createCategory.Content.ReadFromJsonAsync<CategoryDto>();
+        Assert.NotNull(category);
+
+        var createProduct = await client.PostAsJsonAsync("/api/products", new CreateProductRequest
+        {
+            Sku = "REO-001",
+            Name = "Reorder Product",
+            CategoryId = category!.Id,
+            ReorderLevel = 4,
+            TargetStockLevel = 12
+        });
+        createProduct.EnsureSuccessStatusCode();
+        var product = await createProduct.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(product);
+
+        var recommendations = await client.GetFromJsonAsync<List<ReorderRecommendationDto>>("/api/inventory/reorder-recommendations");
+        Assert.NotNull(recommendations);
+        var item = recommendations!.Single(x => x.ProductId == product!.Id);
+        Assert.Equal(0, item.OnHandQty);
+        Assert.Equal(4, item.ReorderLevel);
+        Assert.Equal(12, item.TargetStockLevel);
+        Assert.Equal(12, item.SuggestedReorderQty);
+        Assert.Equal(ReorderRecommendationPriorities.Critical, item.Priority);
+
+        var byCategory = await client.GetFromJsonAsync<List<ReorderRecommendationDto>>($"/api/inventory/reorder-recommendations?categoryId={category.Id}");
+        Assert.NotNull(byCategory);
+        Assert.Contains(byCategory!, x => x.ProductId == product.Id);
+
+        var byPriority = await client.GetFromJsonAsync<List<ReorderRecommendationDto>>($"/api/inventory/reorder-recommendations?priority={ReorderRecommendationPriorities.Critical}");
+        Assert.NotNull(byPriority);
+        Assert.Contains(byPriority!, x => x.ProductId == product.Id);
+
+        await client.DeleteAsync($"/api/products/{product.Id}");
+        recommendations = await client.GetFromJsonAsync<List<ReorderRecommendationDto>>("/api/inventory/reorder-recommendations");
+        Assert.NotNull(recommendations);
+        Assert.DoesNotContain(recommendations!, x => x.ProductId == product.Id);
+    }
+
+    [Fact]
     public async Task CreateIssue_AsViewer_ReturnsForbidden()
     {
         using var client = CreateClient();

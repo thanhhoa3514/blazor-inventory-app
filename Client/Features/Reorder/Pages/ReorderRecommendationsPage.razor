@@ -1,0 +1,116 @@
+@page "/reorder-recommendations"
+@attribute [Authorize]
+@inject ReorderApiClient ReorderApiClient
+@inject CategoryApiClient CategoryApiClient
+
+<PageTitle>Reorder Recommendations</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Reorder Recommendations</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" Class="mb-4" />
+}
+
+<ReorderFilters Search="_search"
+                SearchChanged="OnSearchChanged"
+                CategoryId="_categoryId"
+                CategoryIdChanged="OnCategoryChanged"
+                Priority="_priority"
+                PriorityChanged="OnPriorityChanged"
+                Categories="_categories" />
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading reorder recommendations..." />
+}
+else
+{
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Recommendations</MudText>
+                <MudText Typo="Typo.h4">@_items.Count</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Critical</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Error">@_items.Count(x => x.Priority == ReorderRecommendationPriorities.Critical)</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">High</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Warning">@_items.Count(x => x.Priority == ReorderRecommendationPriorities.High)</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <ReorderTable Items="_items" />
+}
+
+@code {
+    private readonly List<ReorderRecommendationDto> _items = new();
+    private readonly List<CategoryDto> _categories = new();
+    private bool _isLoading = true;
+    private string? _error;
+    private string _search = string.Empty;
+    private int _categoryId;
+    private string _priority = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            if (_categories.Count == 0)
+            {
+                var categories = await CategoryApiClient.GetAllAsync();
+                _categories.Clear();
+                _categories.AddRange(categories);
+            }
+
+            var items = await ReorderApiClient.GetRecommendationsAsync(
+                string.IsNullOrWhiteSpace(_search) ? null : _search,
+                _categoryId > 0 ? _categoryId : null,
+                string.IsNullOrWhiteSpace(_priority) ? null : _priority);
+
+            _items.Clear();
+            _items.AddRange(items);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load reorder recommendations: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSearchChanged(string value)
+    {
+        _search = value;
+        await LoadAsync();
+    }
+
+    private async Task OnCategoryChanged(int value)
+    {
+        _categoryId = value;
+        await LoadAsync();
+    }
+
+    private async Task OnPriorityChanged(string value)
+    {
+        _priority = value;
+        await LoadAsync();
+    }
+}

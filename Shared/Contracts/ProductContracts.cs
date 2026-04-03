@@ -12,6 +12,7 @@ public record ProductDto(
     int OnHandQty,
     decimal AverageCost,
     int ReorderLevel,
+    int TargetStockLevel,
     bool IsActive,
     bool IsDeleted,
     DateTime LastUpdatedUtc);
@@ -34,6 +35,9 @@ public class CreateProductRequest
 
     [Range(0, int.MaxValue)]
     public int ReorderLevel { get; set; } = 5;
+
+    [Range(0, int.MaxValue)]
+    public int TargetStockLevel { get; set; } = 10;
 }
 
 public class UpdateProductRequest : CreateProductRequest

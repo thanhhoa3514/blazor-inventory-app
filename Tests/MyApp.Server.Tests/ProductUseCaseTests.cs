@@ -35,6 +35,25 @@ public class ProductUseCaseTests
     }
 
     [Fact]
+    public async Task CreateProduct_WithTargetStockBelowReorder_ReturnsValidationError()
+    {
+        await using var db = await CreateContextAsync();
+        var (repo, catId) = await CreateRepoWithCategoryAsync(db);
+        var cmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+
+        var result = await cmd.ExecuteAsync(new CreateProductRequest
+        {
+            Sku = "BAD-001",
+            Name = "Invalid Product",
+            CategoryId = catId,
+            ReorderLevel = 10,
+            TargetStockLevel = 5
+        });
+
+        Assert.IsType<AppResult<ProductDto>.ValidationError>(result);
+    }
+
+    [Fact]
     public async Task UpdateProduct_WithMissingCategory_ReturnsValidationError()
     {
         await using var db = await CreateContextAsync();
@@ -56,6 +75,36 @@ public class ProductUseCaseTests
             Name = "Widget",
             CategoryId = 9999,
             ReorderLevel = 5,
+            IsActive = true
+        });
+
+        Assert.IsType<AppResult<ProductDto>.ValidationError>(result);
+    }
+
+    [Fact]
+    public async Task UpdateProduct_WithTargetStockBelowReorder_ReturnsValidationError()
+    {
+        await using var db = await CreateContextAsync();
+        var (repo, catId) = await CreateRepoWithCategoryAsync(db);
+        var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+        var updateCmd = new UpdateProductCommand(repo, new NoOpAuditLogWriter());
+
+        var created = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
+        {
+            Sku = "VAL-001",
+            Name = "Valid Product",
+            CategoryId = catId,
+            ReorderLevel = 5,
+            TargetStockLevel = 10
+        });
+
+        var result = await updateCmd.ExecuteAsync(created.Value.Id, new UpdateProductRequest
+        {
+            Sku = "VAL-001",
+            Name = "Valid Product",
+            CategoryId = catId,
+            ReorderLevel = 10,
+            TargetStockLevel = 5,
             IsActive = true
         });
 

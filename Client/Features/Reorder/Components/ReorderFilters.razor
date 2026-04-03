@@ -1,0 +1,42 @@
+@namespace MyApp.Client.Features.Reorder.Components
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudTextField T="string"
+                          Label="Search"
+                          Variant="Variant.Outlined"
+                          Value="@Search"
+                          ValueChanged="SearchChanged"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSelect T="int" Label="Category" Variant="Variant.Outlined" Value="@CategoryId" ValueChanged="CategoryIdChanged">
+                <MudSelectItem T="int" Value="0">All categories</MudSelectItem>
+                @foreach (var category in Categories)
+                {
+                    <MudSelectItem T="int" Value="@category.Id">@category.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="string" Label="Priority" Variant="Variant.Outlined" Value="@Priority" ValueChanged="PriorityChanged">
+                <MudSelectItem T="string" Value="@string.Empty">All priorities</MudSelectItem>
+                <MudSelectItem T="string" Value="@ReorderRecommendationPriorities.Critical">Critical</MudSelectItem>
+                <MudSelectItem T="string" Value="@ReorderRecommendationPriorities.High">High</MudSelectItem>
+                <MudSelectItem T="string" Value="@ReorderRecommendationPriorities.Normal">Normal</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public string Search { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SearchChanged { get; set; }
+    [Parameter] public int CategoryId { get; set; }
+    [Parameter] public EventCallback<int> CategoryIdChanged { get; set; }
+    [Parameter] public string Priority { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> PriorityChanged { get; set; }
+    [Parameter] public IReadOnlyList<CategoryDto> Categories { get; set; } = Array.Empty<CategoryDto>();
+}

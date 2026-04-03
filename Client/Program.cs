@@ -13,6 +13,7 @@ using MyApp.Client.Features.Inventory.Services;
 using MyApp.Client.Features.Issues.Services;
 using MyApp.Client.Features.Products.Services;
 using MyApp.Client.Features.Receipts.Services;
+using MyApp.Client.Features.Reorder.Services;
 using MyApp.Client.Features.Suppliers.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -27,6 +28,7 @@ builder.Services.AddScoped<CategoryApiClient>();
 builder.Services.AddScoped<SupplierApiClient>();
 builder.Services.AddScoped<CustomerApiClient>();
 builder.Services.AddScoped<ProductApiClient>();
+builder.Services.AddScoped<ReorderApiClient>();
 builder.Services.AddScoped<InventoryApiClient>();
 builder.Services.AddScoped<ReceiptApiClient>();
 builder.Services.AddScoped<IssueApiClient>();

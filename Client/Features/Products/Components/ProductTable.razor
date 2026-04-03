@@ -15,6 +15,7 @@
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="onhand">On Hand</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="avgcost">Avg Cost</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="reorder">Reorder</MudTableSortLabel></MudTh>
+        <MudTh>Target</MudTh>
         <MudTh>Status</MudTh>
         <MudTh Class="text-right">Actions</MudTh>
     </HeaderContent>
@@ -25,6 +26,7 @@
         <MudTd DataLabel="On Hand">@context.OnHandQty</MudTd>
         <MudTd DataLabel="Avg Cost">@context.AverageCost.ToString("C")</MudTd>
         <MudTd DataLabel="Reorder">@context.ReorderLevel</MudTd>
+        <MudTd DataLabel="Target">@context.TargetStockLevel</MudTd>
         <MudTd DataLabel="Status">
             <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
                 @(context.IsActive ? "Active" : "Inactive")

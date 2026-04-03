@@ -1,0 +1,51 @@
+@namespace MyApp.Client.Features.Reorder.Components
+
+<MudTable T="ReorderRecommendationDto" Items="Items" Hover="true" Dense="true">
+    <HeaderContent>
+        <MudTh>SKU</MudTh>
+        <MudTh>Product</MudTh>
+        <MudTh>Category</MudTh>
+        <MudTh>On Hand</MudTh>
+        <MudTh>Reorder Level</MudTh>
+        <MudTh>Target Stock</MudTh>
+        <MudTh>Suggested Qty</MudTh>
+        <MudTh>Priority</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="SKU">@context.Sku</MudTd>
+        <MudTd DataLabel="Product">@context.ProductName</MudTd>
+        <MudTd DataLabel="Category">@context.CategoryName</MudTd>
+        <MudTd DataLabel="On Hand">@context.OnHandQty</MudTd>
+        <MudTd DataLabel="Reorder">@context.ReorderLevel</MudTd>
+        <MudTd DataLabel="Target">@context.TargetStockLevel</MudTd>
+        <MudTd DataLabel="Suggested">@context.SuggestedReorderQty</MudTd>
+        <MudTd DataLabel="Priority">
+            <MudChip T="string" Size="Size.Small" Color="@PriorityColor(context.Priority)">
+                @context.Priority
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Status">@context.StockStatus</MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Href="@($"/products/{context.ProductId}/stock-card")">
+                Stock Card
+            </MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body2" Class="pa-2">No reorder recommendations found.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter] public IReadOnlyList<ReorderRecommendationDto> Items { get; set; } = Array.Empty<ReorderRecommendationDto>();
+
+    private static Color PriorityColor(string priority)
+        => priority switch
+        {
+            ReorderRecommendationPriorities.Critical => Color.Error,
+            ReorderRecommendationPriorities.High => Color.Warning,
+            _ => Color.Info
+        };
+}

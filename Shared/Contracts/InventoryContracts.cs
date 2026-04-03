@@ -9,6 +9,21 @@ public static class InventoryMovementTypes
     public static readonly string[] All = [Receipt, Issue, Adjustment];
 }
 
+public static class ReorderRecommendationPriorities
+{
+    public const string Critical = "Critical";
+    public const string High = "High";
+    public const string Normal = "Normal";
+}
+
+public static class ReorderStockStatuses
+{
+    public const string OutOfStock = "OutOfStock";
+    public const string Critical = "Critical";
+    public const string Low = "Low";
+    public const string Healthy = "Healthy";
+}
+
 public record LowStockItemDto(
     int ProductId,
     string Sku,
@@ -49,3 +64,15 @@ public class ProductStockCardDto
     public decimal CurrentAverageCost { get; set; }
     public List<StockCardEntryDto> Entries { get; set; } = new();
 }
+
+public record ReorderRecommendationDto(
+    int ProductId,
+    string Sku,
+    string ProductName,
+    string CategoryName,
+    int OnHandQty,
+    int ReorderLevel,
+    int TargetStockLevel,
+    int SuggestedReorderQty,
+    string Priority,
+    string StockStatus);

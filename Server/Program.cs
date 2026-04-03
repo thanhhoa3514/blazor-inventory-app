@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MyApp.Server.Application.Audit.Queries;
 using MyApp.Server.Application.Categories.Commands;
@@ -22,7 +23,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql =>
+        {
+            sql.CommandTimeout(120);
+            sql.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        });
 });
 builder.Services.AddHttpContextAccessor();
 
@@ -93,6 +103,7 @@ builder.Services.AddScoped<IStockReceiptRepository, StockReceiptRepository>();
 builder.Services.AddScoped<IStockIssueRepository, StockIssueRepository>();
 builder.Services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
 builder.Services.AddScoped<IInventoryReadRepository, InventoryReadRepository>();
+builder.Services.AddScoped<IReorderReadRepository, ReorderReadRepository>();
 builder.Services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddScoped<IAuditLogWriter, AuditLogWriter>();
@@ -140,6 +151,7 @@ builder.Services.AddScoped<CreateReceiptCommand>();
 builder.Services.AddScoped<CreateIssueCommand>();
 builder.Services.AddScoped<CreateAdjustmentCommand>();
 builder.Services.AddScoped<GetProductStockCardQuery>();
+builder.Services.AddScoped<GetReorderRecommendationsQuery>();
 
 // Audit queries
 builder.Services.AddScoped<GetAuditLogsQuery>();
@@ -172,7 +184,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 await ApplyDatabaseMigrationsAsync(app.Services, app.Environment);
-await AuthSeeder.SeedAsync(app.Services);
+await SeedAuthIfEnabledAsync(app.Services, app.Environment);
 
 app.MapRazorPages();
 app.MapControllers();
@@ -199,5 +211,61 @@ static async Task ApplyDatabaseMigrationsAsync(IServiceProvider services, IWebHo
 
 static bool IsApiRequest(PathString path)
     => path.StartsWithSegments("/api");
+
+static async Task SeedAuthIfEnabledAsync(IServiceProvider services, IWebHostEnvironment environment)
+{
+    if (!environment.IsDevelopment() && !environment.IsEnvironment("Testing"))
+    {
+        return;
+    }
+
+    var delays = new[]
+    {
+        TimeSpan.Zero,
+        TimeSpan.FromSeconds(3),
+        TimeSpan.FromSeconds(8),
+        TimeSpan.FromSeconds(15)
+    };
+
+    Exception? lastException = null;
+
+    foreach (var delay in delays)
+    {
+        if (delay > TimeSpan.Zero)
+        {
+            await Task.Delay(delay);
+        }
+
+        try
+        {
+            await AuthSeeder.SeedAsync(services);
+            return;
+        }
+        catch (Exception ex) when (IsTransientStartupDatabaseException(ex))
+        {
+            lastException = ex;
+        }
+    }
+
+    throw new InvalidOperationException(
+        "Authentication seed failed after multiple retries. Verify SQL Server health and try again.",
+        lastException);
+}
+
+static bool IsTransientStartupDatabaseException(Exception exception)
+{
+    if (exception is TimeoutException)
+    {
+        return true;
+    }
+
+    if (exception is SqlException sqlException)
+    {
+        return sqlException.Number == -2
+               || sqlException.Errors.Cast<SqlError>().Any(error => error.Number == -2);
+    }
+
+    return exception.InnerException is not null && IsTransientStartupDatabaseException(exception.InnerException);
+}
 
 public partial class Program;

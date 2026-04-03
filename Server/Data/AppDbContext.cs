@@ -48,6 +48,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             {
                 table.HasCheckConstraint("CK_Products_OnHandQty_NonNegative", "[OnHandQty] >= 0");
                 table.HasCheckConstraint("CK_Products_ReorderLevel_NonNegative", "[ReorderLevel] >= 0");
+                table.HasCheckConstraint("CK_Products_TargetStockLevel_NonNegative", "[TargetStockLevel] >= 0");
             });
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Sku).IsRequired().HasMaxLength(50);
@@ -234,6 +235,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 OnHandQty = 20,
                 AverageCost = 10.00m,
                 ReorderLevel = 5,
+                TargetStockLevel = 15,
                 IsActive = true,
                 CreatedAtUtc = seededAt,
                 LastUpdatedUtc = seededAt
@@ -248,6 +250,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 OnHandQty = 50,
                 AverageCost = 3.00m,
                 ReorderLevel = 10,
+                TargetStockLevel = 25,
                 IsActive = true,
                 CreatedAtUtc = seededAt,
                 LastUpdatedUtc = seededAt
