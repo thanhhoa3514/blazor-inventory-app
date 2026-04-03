@@ -11,6 +11,7 @@ public static class CustomerMapper
             entity.Name,
             entity.Description,
             entity.IsActive,
+            entity.IsDeleted,
             entity.CreatedAtUtc,
             entity.LastUpdatedUtc);
 }

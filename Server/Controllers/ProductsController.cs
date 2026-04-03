@@ -14,28 +14,39 @@ namespace MyApp.Server.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly GetAllProductsQuery _getAll;
+    private readonly GetDeletedProductsQuery _getDeleted;
     private readonly GetProductByIdQuery _getById;
     private readonly CreateProductCommand _create;
     private readonly UpdateProductCommand _update;
     private readonly DeleteProductCommand _delete;
+    private readonly RestoreProductCommand _restore;
 
     public ProductsController(
         GetAllProductsQuery getAll,
+        GetDeletedProductsQuery getDeleted,
         GetProductByIdQuery getById,
         CreateProductCommand create,
         UpdateProductCommand update,
-        DeleteProductCommand delete)
+        DeleteProductCommand delete,
+        RestoreProductCommand restore)
     {
         _getAll = getAll;
+        _getDeleted = getDeleted;
         _getById = getById;
         _create = create;
         _update = update;
         _delete = delete;
+        _restore = restore;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll(CancellationToken cancellationToken)
         => Ok(await _getAll.ExecuteAsync(cancellationToken));
+
+    [HttpGet("deleted")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetDeleted(CancellationToken cancellationToken)
+        => Ok(await _getDeleted.ExecuteAsync(cancellationToken));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDto>> GetById(int id, CancellationToken cancellationToken)
@@ -94,6 +105,21 @@ public class ProductsController : ControllerBase
             AppResult<Unit>.Ok => NoContent(),
             AppResult<Unit>.NotFound => NotFound(),
             AppResult<Unit>.Conflict conflict => BadRequest(conflict.Message),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:int}/restore")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<ActionResult<ProductDto>> Restore(int id, CancellationToken cancellationToken)
+    {
+        var result = await _restore.ExecuteAsync(id, cancellationToken);
+        return result switch
+        {
+            AppResult<ProductDto>.Ok ok => Ok(ok.Value),
+            AppResult<ProductDto>.NotFound => NotFound(),
+            AppResult<ProductDto>.ValidationError validationError => BadRequest(validationError.Message),
+            AppResult<ProductDto>.Conflict conflict => BadRequest(conflict.Message),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }

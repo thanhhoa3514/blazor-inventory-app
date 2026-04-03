@@ -1,0 +1,102 @@
+@page "/audit-logs"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject AuditLogApiClient AuditLogApiClient
+
+<PageTitle>Audit Logs</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Audit Logs</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" Class="mb-4" />
+}
+
+<AuditLogFilters EntityType="_entityType"
+                 EntityTypeChanged="OnEntityTypeChanged"
+                 EntityId="_entityId"
+                 EntityIdChanged="OnEntityIdChanged"
+                 ActorUserName="_actorUserName"
+                 ActorUserNameChanged="OnActorChanged"
+                 Action="_action"
+                 ActionChanged="OnActionChanged"
+                 FromDate="_fromDate"
+                 FromDateChanged="OnFromDateChanged"
+                 ToDate="_toDate"
+                 ToDateChanged="OnToDateChanged" />
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading audit logs..." />
+}
+else
+{
+    <AuditLogTable Items="_items" OnSelect="SelectAuditLogAsync" />
+}
+
+@if (_selected is not null)
+{
+    <div class="mt-4">
+        <AuditLogDetailViewer Entry="_selected" />
+    </div>
+}
+
+@code {
+    private readonly List<AuditLogDto> _items = new();
+    private bool _isLoading = true;
+    private string? _error;
+    private string _entityType = string.Empty;
+    private string _entityId = string.Empty;
+    private string _actorUserName = string.Empty;
+    private string _action = string.Empty;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private AuditLogDto? _selected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var result = await AuditLogApiClient.GetAllAsync(
+                string.IsNullOrWhiteSpace(_entityType) ? null : _entityType,
+                string.IsNullOrWhiteSpace(_entityId) ? null : _entityId,
+                string.IsNullOrWhiteSpace(_actorUserName) ? null : _actorUserName,
+                string.IsNullOrWhiteSpace(_action) ? null : _action,
+                _fromDate,
+                _toDate);
+            _items.Clear();
+            _items.AddRange(result);
+            if (_selected is not null)
+            {
+                _selected = _items.FirstOrDefault(x => x.Id == _selected.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load audit logs: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectAuditLogAsync(AuditLogDto item)
+    {
+        _selected = await AuditLogApiClient.GetByIdAsync(item.Id) ?? item;
+    }
+
+    private async Task OnEntityTypeChanged(string value) { _entityType = value; await LoadAsync(); }
+    private async Task OnEntityIdChanged(string value) { _entityId = value; await LoadAsync(); }
+    private async Task OnActorChanged(string value) { _actorUserName = value; await LoadAsync(); }
+    private async Task OnActionChanged(string value) { _action = value; await LoadAsync(); }
+    private async Task OnFromDateChanged(DateTime? value) { _fromDate = value; await LoadAsync(); }
+    private async Task OnToDateChanged(DateTime? value) { _toDate = value; await LoadAsync(); }
+}

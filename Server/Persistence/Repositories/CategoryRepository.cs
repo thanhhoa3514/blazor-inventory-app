@@ -18,13 +18,20 @@ public sealed class CategoryRepository : ICategoryRepository
         => await _db.Categories.AsNoTracking()
             .Where(x => !x.IsDeleted)
             .OrderBy(x => x.Name)
-            .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.CreatedAtUtc))
+            .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.IsDeleted, x.CreatedAtUtc))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<CategoryDto>> GetDeletedAsync(CancellationToken ct = default)
+        => await _db.Categories.AsNoTracking()
+            .Where(x => x.IsDeleted)
+            .OrderBy(x => x.Name)
+            .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.IsDeleted, x.CreatedAtUtc))
             .ToListAsync(ct);
 
     public async Task<CategoryDto?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Categories.AsNoTracking()
             .Where(x => x.Id == id && !x.IsDeleted)
-            .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.CreatedAtUtc))
+            .Select(x => new CategoryDto(x.Id, x.Name, x.Description, x.IsDeleted, x.CreatedAtUtc))
             .FirstOrDefaultAsync(ct);
 
     public async Task<bool> ExistsByNameAsync(string name, int? excludeId, CancellationToken ct = default)
@@ -37,6 +44,9 @@ public sealed class CategoryRepository : ICategoryRepository
 
     public async Task<Category?> FindAsync(int id, CancellationToken ct = default)
         => await _db.Categories.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+
+    public async Task<Category?> FindIncludingDeletedAsync(int id, CancellationToken ct = default)
+        => await _db.Categories.FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task AddAsync(Category entity, CancellationToken ct = default)
     {

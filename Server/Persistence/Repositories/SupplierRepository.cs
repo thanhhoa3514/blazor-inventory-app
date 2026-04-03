@@ -23,6 +23,21 @@ public sealed class SupplierRepository : ISupplierRepository
                 x.Name,
                 x.Description,
                 x.IsActive,
+                x.IsDeleted,
+                x.CreatedAtUtc,
+                x.LastUpdatedUtc))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<SupplierDto>> GetDeletedAsync(CancellationToken ct = default)
+        => await _db.Suppliers.AsNoTracking()
+            .Where(x => x.IsDeleted)
+            .OrderBy(x => x.Name)
+            .Select(x => new SupplierDto(
+                x.Id,
+                x.Name,
+                x.Description,
+                x.IsActive,
+                x.IsDeleted,
                 x.CreatedAtUtc,
                 x.LastUpdatedUtc))
             .ToListAsync(ct);
@@ -35,17 +50,21 @@ public sealed class SupplierRepository : ISupplierRepository
                 x.Name,
                 x.Description,
                 x.IsActive,
+                x.IsDeleted,
                 x.CreatedAtUtc,
                 x.LastUpdatedUtc))
             .FirstOrDefaultAsync(ct);
 
     public async Task<bool> ExistsByNameAsync(string name, int? excludeId, CancellationToken ct = default)
         => excludeId.HasValue
-            ? await _db.Suppliers.AnyAsync(x => x.Id != excludeId.Value && x.Name == name, ct)
-            : await _db.Suppliers.AnyAsync(x => x.Name == name, ct);
+            ? await _db.Suppliers.AnyAsync(x => x.Id != excludeId.Value && !x.IsDeleted && x.Name == name, ct)
+            : await _db.Suppliers.AnyAsync(x => !x.IsDeleted && x.Name == name, ct);
 
     public async Task<Supplier?> FindAsync(int id, CancellationToken ct = default)
         => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+
+    public async Task<Supplier?> FindIncludingDeletedAsync(int id, CancellationToken ct = default)
+        => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task<Supplier?> FindActiveAsync(int id, CancellationToken ct = default)
         => await _db.Suppliers.FirstOrDefaultAsync(x => x.Id == id && x.IsActive && !x.IsDeleted, ct);

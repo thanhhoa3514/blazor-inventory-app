@@ -14,19 +14,31 @@
     <ErrorState Message="@_serverError" Class="mb-4" />
 }
 
-<ProductForm Model="_form"
-             Categories="_categories"
-             IsSubmitting="_isSubmitting"
-             IsEditing="@_editingId.HasValue"
-             OnSubmit="SaveAsync" />
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.subtitle1">Manage products and restore deleted ones.</MudText>
+    <MudSwitch T="bool" Color="Color.Primary" Value="_showDeleted" ValueChanged="ToggleDeletedAsync">
+        Show Deleted
+    </MudSwitch>
+</MudStack>
+
+@if (!_showDeleted)
+{
+    <ProductForm Model="_form"
+                 Categories="_categories"
+                 IsSubmitting="_isSubmitting"
+                 IsEditing="@_editingId.HasValue"
+                 OnSubmit="SaveAsync" />
+}
 
 <ProductTable IsLoading="_isLoading"
+              ShowDeleted="_showDeleted"
               Filter="_filter"
               ReloadKey="_tableReloadKey"
               FilterChanged="OnSearchChanged"
               ServerData="LoadServerData"
               OnEdit="StartEdit"
-              OnDelete="DeleteAsync" />
+              OnDelete="DeleteAsync"
+              OnRestore="RestoreAsync" />
 
 @code {
     private readonly ProductEditorModel _form = new();
@@ -39,6 +51,7 @@
     private bool _isSubmitting;
     private int _tableReloadKey;
     private string? _serverError;
+    private bool _showDeleted;
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,7 +77,9 @@
 
         try
         {
-            var products = await ProductApiClient.GetAllAsync();
+            var products = _showDeleted
+                ? await ProductApiClient.GetDeletedAsync()
+                : await ProductApiClient.GetAllAsync();
             _items.Clear();
             _items.AddRange(products);
         }
@@ -115,6 +130,8 @@
 
     private void StartEdit(ProductDto item)
     {
+        if (_showDeleted)
+            return;
         _editingId = item.Id;
         _form.Load(item);
     }
@@ -154,6 +171,37 @@
         catch (Exception ex)
         {
             _serverError = $"Delete failed: {ex.Message}";
+        }
+    }
+
+    private async Task RestoreAsync(ProductDto item)
+    {
+        _serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Restore Product",
+            content: $"Restore product '{item.Sku} - {item.Name}'?",
+            buttonText: "Restore",
+            color: Color.Success);
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var result = await ProductApiClient.RestoreAsync(item.Id);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add("Product restored.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Restore failed: {ex.Message}";
         }
     }
 
@@ -198,6 +246,16 @@
     {
         _filter.SearchTerm = value;
         return Task.CompletedTask;
+    }
+
+    private async Task ToggleDeletedAsync(bool value)
+    {
+        _showDeleted = value;
+        if (_showDeleted)
+        {
+            ResetForm();
+        }
+        await LoadAsync();
     }
 
     private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)

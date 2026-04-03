@@ -1,0 +1,39 @@
+@namespace MyApp.Client.Features.Audit.Components
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" md="2">
+            <MudTextField T="string" Label="Entity Type" Variant="Variant.Outlined" Value="@EntityType" ValueChanged="EntityTypeChanged" />
+        </MudItem>
+        <MudItem xs="12" md="2">
+            <MudTextField T="string" Label="Entity Id" Variant="Variant.Outlined" Value="@EntityId" ValueChanged="EntityIdChanged" />
+        </MudItem>
+        <MudItem xs="12" md="2">
+            <MudTextField T="string" Label="Actor" Variant="Variant.Outlined" Value="@ActorUserName" ValueChanged="ActorUserNameChanged" />
+        </MudItem>
+        <MudItem xs="12" md="2">
+            <MudTextField T="string" Label="Action" Variant="Variant.Outlined" Value="@Action" ValueChanged="ActionChanged" />
+        </MudItem>
+        <MudItem xs="12" md="2">
+            <MudDatePicker Label="From" Variant="Variant.Outlined" Date="@FromDate" DateChanged="FromDateChanged" Clearable="true" />
+        </MudItem>
+        <MudItem xs="12" md="2">
+            <MudDatePicker Label="To" Variant="Variant.Outlined" Date="@ToDate" DateChanged="ToDateChanged" Clearable="true" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public string EntityType { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> EntityTypeChanged { get; set; }
+    [Parameter] public string EntityId { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> EntityIdChanged { get; set; }
+    [Parameter] public string ActorUserName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ActorUserNameChanged { get; set; }
+    [Parameter] public string Action { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ActionChanged { get; set; }
+    [Parameter] public DateTime? FromDate { get; set; }
+    [Parameter] public EventCallback<DateTime?> FromDateChanged { get; set; }
+    [Parameter] public DateTime? ToDate { get; set; }
+    [Parameter] public EventCallback<DateTime?> ToDateChanged { get; set; }
+}

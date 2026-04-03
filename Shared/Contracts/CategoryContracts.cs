@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MyApp.Shared.Contracts;
 
-public record CategoryDto(int Id, string Name, string? Description, DateTime CreatedAtUtc);
+public record CategoryDto(int Id, string Name, string? Description, bool IsDeleted, DateTime CreatedAtUtc);
 
 public class CreateCategoryRequest
 {

@@ -1,0 +1,32 @@
+@namespace MyApp.Client.Features.Audit.Components
+
+@if (Entry is not null)
+{
+    <MudPaper Elevation="1" Class="pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">Audit Detail</MudText>
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="4"><MudText><b>Entity:</b> @Entry.EntityType</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Entity Id:</b> @Entry.EntityId</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Action:</b> @Entry.Action</MudText></MudItem>
+            <MudItem xs="12" md="4"><MudText><b>Actor:</b> @Entry.ActorUserName</MudText></MudItem>
+            <MudItem xs="12" md="8"><MudText><b>Occurred:</b> @Entry.OccurredAtUtc.ToLocalTime().ToString("g")</MudText></MudItem>
+            <MudItem xs="12"><MudText><b>Summary:</b> @Entry.Summary</MudText></MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Changed Fields</MudText>
+        <MudTextField T="string" Value="@FormatJson(Entry.ChangedFieldsJson)" Lines="6" ReadOnly="true" Variant="Variant.Outlined" Class="mb-4" />
+
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Before</MudText>
+        <MudTextField T="string" Value="@FormatJson(Entry.BeforeJson)" Lines="8" ReadOnly="true" Variant="Variant.Outlined" Class="mb-4" />
+
+        <MudText Typo="Typo.subtitle1" Class="mb-2">After</MudText>
+        <MudTextField T="string" Value="@FormatJson(Entry.AfterJson)" Lines="8" ReadOnly="true" Variant="Variant.Outlined" />
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public AuditLogDto? Entry { get; set; }
+
+    private static string FormatJson(string? json)
+        => string.IsNullOrWhiteSpace(json) ? "{}" : json;
+}

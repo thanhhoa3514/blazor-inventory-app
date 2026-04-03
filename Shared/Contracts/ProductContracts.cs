@@ -13,6 +13,7 @@ public record ProductDto(
     decimal AverageCost,
     int ReorderLevel,
     bool IsActive,
+    bool IsDeleted,
     DateTime LastUpdatedUtc);
 
 public class CreateProductRequest

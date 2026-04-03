@@ -7,6 +7,7 @@ public record CustomerDto(
     string Name,
     string? Description,
     bool IsActive,
+    bool IsDeleted,
     DateTime CreatedAtUtc,
     DateTime LastUpdatedUtc);
 

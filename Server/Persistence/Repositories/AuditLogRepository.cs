@@ -13,6 +13,23 @@ public sealed class AuditLogRepository : IAuditLogRepository
         _db = db;
     }
 
+    public async Task<AuditLogDto?> GetByIdAsync(int id, CancellationToken ct = default)
+        => await _db.AuditLogs.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new AuditLogDto(
+                x.Id,
+                x.EntityType,
+                x.EntityId,
+                x.Action,
+                x.ActorUserId,
+                x.ActorUserName,
+                x.Summary,
+                x.BeforeJson,
+                x.AfterJson,
+                x.ChangedFieldsJson,
+                x.OccurredAtUtc))
+            .FirstOrDefaultAsync(ct);
+
     public async Task<IReadOnlyList<AuditLogDto>> GetAllAsync(
         string? entityType = null,
         string? entityId = null,

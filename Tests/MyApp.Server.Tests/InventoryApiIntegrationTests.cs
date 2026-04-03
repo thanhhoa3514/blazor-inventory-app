@@ -226,6 +226,114 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task RestoreProductAndCategory_AsAdmin_ReturnsEntitiesToActiveLists()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var createCategory = await client.PostAsJsonAsync("/api/categories", new CreateCategoryRequest
+        {
+            Name = "Restore Category",
+            Description = "Restore integration test"
+        });
+        createCategory.EnsureSuccessStatusCode();
+        var category = await createCategory.Content.ReadFromJsonAsync<CategoryDto>();
+        Assert.NotNull(category);
+
+        var createProduct = await client.PostAsJsonAsync("/api/products", new CreateProductRequest
+        {
+            Sku = "REST-001",
+            Name = "Restore Product",
+            CategoryId = category!.Id,
+            ReorderLevel = 2
+        });
+        createProduct.EnsureSuccessStatusCode();
+        var product = await createProduct.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(product);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/products/{product!.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/categories/{category.Id}")).StatusCode);
+
+        var restoreProduct = await client.PostAsync($"/api/products/{product.Id}/restore", null);
+        restoreProduct.EnsureSuccessStatusCode();
+        var restoreCategory = await client.PostAsync($"/api/categories/{category.Id}/restore", null);
+        restoreCategory.EnsureSuccessStatusCode();
+
+        var products = await client.GetFromJsonAsync<List<ProductDto>>("/api/products");
+        var categories = await client.GetFromJsonAsync<List<CategoryDto>>("/api/categories");
+
+        Assert.NotNull(products);
+        Assert.NotNull(categories);
+        Assert.Contains(products!, x => x.Id == product.Id && !x.IsDeleted);
+        Assert.Contains(categories!, x => x.Id == category.Id && !x.IsDeleted);
+
+        var restoredAudit = await client.GetFromJsonAsync<List<AuditLogDto>>($"/api/audit-logs?entityType=Product&entityId={product.Id}&action=Restored");
+        Assert.NotNull(restoredAudit);
+        Assert.NotEmpty(restoredAudit!);
+    }
+
+    [Fact]
+    public async Task SoftDeleteAndRestoreSupplier_AsAdmin_PreservesOperationalViews()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var supplier = await CreateSupplierAsync(client, "Restore Supplier");
+
+        var softDelete = await client.PostAsync($"/api/suppliers/{supplier.Id}/soft-delete", null);
+        Assert.Equal(HttpStatusCode.NoContent, softDelete.StatusCode);
+
+        var activeSuppliers = await client.GetFromJsonAsync<List<SupplierDto>>("/api/suppliers");
+        var deletedSuppliers = await client.GetFromJsonAsync<List<SupplierDto>>("/api/suppliers/deleted");
+        Assert.NotNull(activeSuppliers);
+        Assert.NotNull(deletedSuppliers);
+        Assert.DoesNotContain(activeSuppliers!, x => x.Id == supplier.Id);
+        Assert.Contains(deletedSuppliers!, x => x.Id == supplier.Id && x.IsDeleted);
+
+        var restore = await client.PostAsync($"/api/suppliers/{supplier.Id}/restore", null);
+        Assert.Equal(HttpStatusCode.OK, restore.StatusCode);
+
+        activeSuppliers = await client.GetFromJsonAsync<List<SupplierDto>>("/api/suppliers");
+        Assert.NotNull(activeSuppliers);
+        Assert.Contains(activeSuppliers!, x => x.Id == supplier.Id && !x.IsDeleted);
+    }
+
+    [Fact]
+    public async Task AuditLog_ById_ReturnsSnapshots()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var categoryResponse = await client.PostAsJsonAsync("/api/categories", new CreateCategoryRequest
+        {
+            Name = "Audit Detail Category",
+            Description = "Before update"
+        });
+        categoryResponse.EnsureSuccessStatusCode();
+        var category = await categoryResponse.Content.ReadFromJsonAsync<CategoryDto>();
+        Assert.NotNull(category);
+
+        var update = await client.PutAsJsonAsync($"/api/categories/{category!.Id}", new UpdateCategoryRequest
+        {
+            Name = "Audit Detail Category Updated",
+            Description = "After update"
+        });
+        update.EnsureSuccessStatusCode();
+
+        var logs = await client.GetFromJsonAsync<List<AuditLogDto>>($"/api/audit-logs?entityType=Category&entityId={category.Id}&action=Updated");
+        Assert.NotNull(logs);
+        var latest = Assert.Single(logs!);
+
+        var detail = await client.GetFromJsonAsync<AuditLogDto>($"/api/audit-logs/{latest.Id}");
+        Assert.NotNull(detail);
+        Assert.NotNull(detail!.BeforeJson);
+        Assert.NotNull(detail.AfterJson);
+        Assert.NotNull(detail.ChangedFieldsJson);
+        Assert.Contains("Before update", detail.BeforeJson!);
+        Assert.Contains("After update", detail.AfterJson!);
+    }
+
+    [Fact]
     public async Task ReceiptIssueAndSummary_AsWarehouseStaff_Works()
     {
         using var adminClient = CreateClient();

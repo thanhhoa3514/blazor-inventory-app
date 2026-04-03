@@ -17,5 +17,6 @@ public static class ProductMapper
             entity.AverageCost,
             entity.ReorderLevel,
             entity.IsActive,
+            entity.IsDeleted,
             entity.LastUpdatedUtc);
 }

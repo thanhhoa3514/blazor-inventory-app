@@ -12,10 +12,12 @@ namespace MyApp.Server.Controllers;
 public class AuditLogsController : ControllerBase
 {
     private readonly GetAuditLogsQuery _getAll;
+    private readonly GetAuditLogByIdQuery _getById;
 
-    public AuditLogsController(GetAuditLogsQuery getAll)
+    public AuditLogsController(GetAuditLogsQuery getAll, GetAuditLogByIdQuery getById)
     {
         _getAll = getAll;
+        _getById = getById;
     }
 
     [HttpGet]
@@ -28,4 +30,16 @@ public class AuditLogsController : ControllerBase
         [FromQuery] DateTime? toUtc,
         CancellationToken cancellationToken)
         => Ok(await _getAll.ExecuteAsync(entityType, entityId, actorUserName, action, fromUtc, toUtc, cancellationToken));
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<AuditLogDto>> GetById(int id, CancellationToken cancellationToken)
+    {
+        var result = await _getById.ExecuteAsync(id, cancellationToken);
+        return result switch
+        {
+            MyApp.Server.Application.Common.AppResult<AuditLogDto>.Ok ok => Ok(ok.Value),
+            MyApp.Server.Application.Common.AppResult<AuditLogDto>.NotFound => NotFound(),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
 }

@@ -99,31 +99,41 @@ builder.Services.AddScoped<IAuditLogWriter, AuditLogWriter>();
 
 // Category use cases
 builder.Services.AddScoped<GetAllCategoriesQuery>();
+builder.Services.AddScoped<GetDeletedCategoriesQuery>();
 builder.Services.AddScoped<GetCategoryByIdQuery>();
 builder.Services.AddScoped<CreateCategoryCommand>();
 builder.Services.AddScoped<UpdateCategoryCommand>();
 builder.Services.AddScoped<DeleteCategoryCommand>();
+builder.Services.AddScoped<RestoreCategoryCommand>();
 
 // Supplier use cases
 builder.Services.AddScoped<GetAllSuppliersQuery>();
+builder.Services.AddScoped<GetDeletedSuppliersQuery>();
 builder.Services.AddScoped<GetSupplierByIdQuery>();
 builder.Services.AddScoped<CreateSupplierCommand>();
 builder.Services.AddScoped<UpdateSupplierCommand>();
 builder.Services.AddScoped<DeactivateSupplierCommand>();
+builder.Services.AddScoped<SoftDeleteSupplierCommand>();
+builder.Services.AddScoped<RestoreSupplierCommand>();
 
 // Customer use cases
 builder.Services.AddScoped<GetAllCustomersQuery>();
+builder.Services.AddScoped<GetDeletedCustomersQuery>();
 builder.Services.AddScoped<GetCustomerByIdQuery>();
 builder.Services.AddScoped<CreateCustomerCommand>();
 builder.Services.AddScoped<UpdateCustomerCommand>();
 builder.Services.AddScoped<DeactivateCustomerCommand>();
+builder.Services.AddScoped<SoftDeleteCustomerCommand>();
+builder.Services.AddScoped<RestoreCustomerCommand>();
 
 // Product use cases
 builder.Services.AddScoped<GetAllProductsQuery>();
+builder.Services.AddScoped<GetDeletedProductsQuery>();
 builder.Services.AddScoped<GetProductByIdQuery>();
 builder.Services.AddScoped<CreateProductCommand>();
 builder.Services.AddScoped<UpdateProductCommand>();
 builder.Services.AddScoped<DeleteProductCommand>();
+builder.Services.AddScoped<RestoreProductCommand>();
 
 // Inventory commands
 builder.Services.AddScoped<CreateReceiptCommand>();
@@ -133,6 +143,7 @@ builder.Services.AddScoped<GetProductStockCardQuery>();
 
 // Audit queries
 builder.Services.AddScoped<GetAuditLogsQuery>();
+builder.Services.AddScoped<GetAuditLogByIdQuery>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();

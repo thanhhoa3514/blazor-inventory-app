@@ -30,6 +30,27 @@ public sealed class ProductRepository : IProductRepository
                 x.AverageCost,
                 x.ReorderLevel,
                 x.IsActive,
+                x.IsDeleted,
+                x.LastUpdatedUtc))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<ProductDto>> GetDeletedAsync(CancellationToken ct = default)
+        => await _db.Products.AsNoTracking()
+            .Where(x => x.IsDeleted)
+            .Include(x => x.Category)
+            .OrderBy(x => x.Name)
+            .Select(x => new ProductDto(
+                x.Id,
+                x.Sku,
+                x.Name,
+                x.Description,
+                x.CategoryId,
+                x.Category != null ? x.Category.Name : "Uncategorized",
+                x.OnHandQty,
+                x.AverageCost,
+                x.ReorderLevel,
+                x.IsActive,
+                x.IsDeleted,
                 x.LastUpdatedUtc))
             .ToListAsync(ct);
 
@@ -49,6 +70,7 @@ public sealed class ProductRepository : IProductRepository
                 x.AverageCost,
                 x.ReorderLevel,
                 x.IsActive,
+                x.IsDeleted,
                 x.LastUpdatedUtc))
             .FirstOrDefaultAsync(ct);
 
@@ -67,6 +89,9 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<Product?> FindAsync(int id, CancellationToken ct = default)
         => await _db.Products.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+
+    public async Task<Product?> FindIncludingDeletedAsync(int id, CancellationToken ct = default)
+        => await _db.Products.FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task<Product?> FindActiveAsync(int id, CancellationToken ct = default)
         => await _db.Products.FirstOrDefaultAsync(x => x.Id == id && x.IsActive && !x.IsDeleted, ct);

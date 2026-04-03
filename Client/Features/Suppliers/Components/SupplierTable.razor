@@ -2,7 +2,7 @@
 
 <MudTable T="SupplierDto" @key="ReloadKey" @ref="_table" ServerData="LoadServerDataAsync" Hover="true" Dense="true" Loading="@IsLoading">
     <ToolBarContent>
-        <MudText Typo="Typo.h6">Supplier List</MudText>
+        <MudText Typo="Typo.h6">@(ShowDeleted ? "Deleted Suppliers" : "Supplier List")</MudText>
         <MudSpacer />
         <MudTextField T="string"
                       Label="Search"
@@ -32,10 +32,18 @@
         <MudTd DataLabel="Actions" Class="text-right">
             <AuthorizeView Roles="@AppRoles.Admin">
                 <Authorized Context="authState">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => OnEdit.InvokeAsync(context))">Edit</MudButton>
-                    @if (context.IsActive)
+                    @if (ShowDeleted)
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" Class="ml-2" OnClick="@(() => OnDeactivate.InvokeAsync(context))">Deactivate</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" OnClick="@(() => OnRestore.InvokeAsync(context))">Restore</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => OnEdit.InvokeAsync(context))">Edit</MudButton>
+                        @if (context.IsActive)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" Class="ml-2" OnClick="@(() => OnDeactivate.InvokeAsync(context))">Deactivate</MudButton>
+                        }
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="ml-2" OnClick="@(() => OnSoftDelete.InvokeAsync(context))">Soft Delete</MudButton>
                     }
                 </Authorized>
             </AuthorizeView>
@@ -53,12 +61,15 @@
     private MudTable<SupplierDto>? _table;
 
     [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool ShowDeleted { get; set; }
     [Parameter] public string SearchTerm { get; set; } = string.Empty;
     [Parameter] public int ReloadKey { get; set; }
     [Parameter] public EventCallback<string> SearchTermChanged { get; set; }
     [Parameter, EditorRequired] public Func<TableState, CancellationToken, Task<TableData<SupplierDto>>> ServerData { get; set; } = default!;
     [Parameter] public EventCallback<SupplierDto> OnEdit { get; set; }
     [Parameter] public EventCallback<SupplierDto> OnDeactivate { get; set; }
+    [Parameter] public EventCallback<SupplierDto> OnSoftDelete { get; set; }
+    [Parameter] public EventCallback<SupplierDto> OnRestore { get; set; }
 
     private Task<TableData<SupplierDto>> LoadServerDataAsync(TableState state, CancellationToken cancellationToken)
         => ServerData.Invoke(state, cancellationToken);

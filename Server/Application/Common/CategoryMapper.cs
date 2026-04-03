@@ -6,5 +6,5 @@ namespace MyApp.Server.Application.Common;
 public static class CategoryMapper
 {
     public static CategoryDto ToDto(this Category entity)
-        => new(entity.Id, entity.Name, entity.Description, entity.CreatedAtUtc);
+        => new(entity.Id, entity.Name, entity.Description, entity.IsDeleted, entity.CreatedAtUtc);
 }

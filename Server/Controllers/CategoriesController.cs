@@ -14,28 +14,39 @@ namespace MyApp.Server.Controllers;
 public class CategoriesController : ControllerBase
 {
     private readonly GetAllCategoriesQuery _getAll;
+    private readonly GetDeletedCategoriesQuery _getDeleted;
     private readonly GetCategoryByIdQuery _getById;
     private readonly CreateCategoryCommand _create;
     private readonly UpdateCategoryCommand _update;
     private readonly DeleteCategoryCommand _delete;
+    private readonly RestoreCategoryCommand _restore;
 
     public CategoriesController(
         GetAllCategoriesQuery getAll,
+        GetDeletedCategoriesQuery getDeleted,
         GetCategoryByIdQuery getById,
         CreateCategoryCommand create,
         UpdateCategoryCommand update,
-        DeleteCategoryCommand delete)
+        DeleteCategoryCommand delete,
+        RestoreCategoryCommand restore)
     {
         _getAll = getAll;
+        _getDeleted = getDeleted;
         _getById = getById;
         _create = create;
         _update = update;
         _delete = delete;
+        _restore = restore;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAll(CancellationToken cancellationToken)
         => Ok(await _getAll.ExecuteAsync(cancellationToken));
+
+    [HttpGet("deleted")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<ActionResult<IEnumerable<CategoryDto>>> GetDeleted(CancellationToken cancellationToken)
+        => Ok(await _getDeleted.ExecuteAsync(cancellationToken));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CategoryDto>> GetById(int id, CancellationToken cancellationToken)
@@ -92,6 +103,21 @@ public class CategoriesController : ControllerBase
             AppResult<Unit>.Ok => NoContent(),
             AppResult<Unit>.NotFound => NotFound(),
             AppResult<Unit>.Conflict conflict => BadRequest(conflict.Message),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:int}/restore")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<ActionResult<CategoryDto>> Restore(int id, CancellationToken cancellationToken)
+    {
+        var result = await _restore.ExecuteAsync(id, cancellationToken);
+        return result switch
+        {
+            AppResult<CategoryDto>.Ok ok => Ok(ok.Value),
+            AppResult<CategoryDto>.NotFound => NotFound(),
+            AppResult<CategoryDto>.ValidationError validationError => BadRequest(validationError.Message),
+            AppResult<CategoryDto>.Conflict conflict => BadRequest(conflict.Message),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }

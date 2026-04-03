@@ -17,6 +17,9 @@ public sealed class SupplierApiClient
     public async Task<List<SupplierDto>> GetAllAsync(CancellationToken cancellationToken = default)
         => await _httpClient.GetFromJsonAsync<List<SupplierDto>>("api/suppliers", cancellationToken) ?? [];
 
+    public async Task<List<SupplierDto>> GetDeletedAsync(CancellationToken cancellationToken = default)
+        => await _httpClient.GetFromJsonAsync<List<SupplierDto>>("api/suppliers/deleted", cancellationToken) ?? [];
+
     public async Task<List<SupplierDto>> GetActiveAsync(CancellationToken cancellationToken = default)
         => (await GetAllAsync(cancellationToken)).Where(x => x.IsActive).ToList();
 
@@ -38,7 +41,23 @@ public sealed class SupplierApiClient
 
     public async Task<ApiCommandResult> DeactivateAsync(int id, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.DeleteAsync($"api/suppliers/{id}", cancellationToken);
+        var response = await _httpClient.PostAsync($"api/suppliers/{id}/deactivate", null, cancellationToken);
+        return response.IsSuccessStatusCode
+            ? ApiCommandResult.Ok()
+            : ApiCommandResult.Fail(await response.ReadErrorMessageAsync());
+    }
+
+    public async Task<ApiCommandResult> SoftDeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsync($"api/suppliers/{id}/soft-delete", null, cancellationToken);
+        return response.IsSuccessStatusCode
+            ? ApiCommandResult.Ok()
+            : ApiCommandResult.Fail(await response.ReadErrorMessageAsync());
+    }
+
+    public async Task<ApiCommandResult> RestoreAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsync($"api/suppliers/{id}/restore", null, cancellationToken);
         return response.IsSuccessStatusCode
             ? ApiCommandResult.Ok()
             : ApiCommandResult.Fail(await response.ReadErrorMessageAsync());

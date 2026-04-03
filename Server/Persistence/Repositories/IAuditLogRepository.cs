@@ -4,6 +4,7 @@ namespace MyApp.Server.Persistence.Repositories;
 
 public interface IAuditLogRepository
 {
+    Task<AuditLogDto?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<IReadOnlyList<AuditLogDto>> GetAllAsync(
         string? entityType = null,
         string? entityId = null,

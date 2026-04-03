@@ -14,28 +14,42 @@ namespace MyApp.Server.Controllers;
 public class SuppliersController : ControllerBase
 {
     private readonly GetAllSuppliersQuery _getAll;
+    private readonly GetDeletedSuppliersQuery _getDeleted;
     private readonly GetSupplierByIdQuery _getById;
     private readonly CreateSupplierCommand _create;
     private readonly UpdateSupplierCommand _update;
     private readonly DeactivateSupplierCommand _deactivate;
+    private readonly SoftDeleteSupplierCommand _softDelete;
+    private readonly RestoreSupplierCommand _restore;
 
     public SuppliersController(
         GetAllSuppliersQuery getAll,
+        GetDeletedSuppliersQuery getDeleted,
         GetSupplierByIdQuery getById,
         CreateSupplierCommand create,
         UpdateSupplierCommand update,
-        DeactivateSupplierCommand deactivate)
+        DeactivateSupplierCommand deactivate,
+        SoftDeleteSupplierCommand softDelete,
+        RestoreSupplierCommand restore)
     {
         _getAll = getAll;
+        _getDeleted = getDeleted;
         _getById = getById;
         _create = create;
         _update = update;
         _deactivate = deactivate;
+        _softDelete = softDelete;
+        _restore = restore;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SupplierDto>>> GetAll(CancellationToken cancellationToken)
         => Ok(await _getAll.ExecuteAsync(cancellationToken));
+
+    [HttpGet("deleted")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<ActionResult<IEnumerable<SupplierDto>>> GetDeleted(CancellationToken cancellationToken)
+        => Ok(await _getDeleted.ExecuteAsync(cancellationToken));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<SupplierDto>> GetById(int id, CancellationToken cancellationToken)
@@ -91,6 +105,35 @@ public class SuppliersController : ControllerBase
         {
             AppResult<Unit>.Ok => NoContent(),
             AppResult<Unit>.NotFound => NotFound(),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:int}/soft-delete")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<IActionResult> SoftDelete(int id, CancellationToken cancellationToken)
+    {
+        var result = await _softDelete.ExecuteAsync(id, cancellationToken);
+        return result switch
+        {
+            AppResult<Unit>.Ok => NoContent(),
+            AppResult<Unit>.NotFound => NotFound(),
+            AppResult<Unit>.Conflict conflict => BadRequest(conflict.Message),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:int}/restore")]
+    [Authorize(Policy = AppPolicies.AdminOnly)]
+    public async Task<ActionResult<SupplierDto>> Restore(int id, CancellationToken cancellationToken)
+    {
+        var result = await _restore.ExecuteAsync(id, cancellationToken);
+        return result switch
+        {
+            AppResult<SupplierDto>.Ok ok => Ok(ok.Value),
+            AppResult<SupplierDto>.NotFound => NotFound(),
+            AppResult<SupplierDto>.ValidationError validationError => BadRequest(validationError.Message),
+            AppResult<SupplierDto>.Conflict conflict => BadRequest(conflict.Message),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }

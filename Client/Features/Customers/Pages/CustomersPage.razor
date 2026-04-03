@@ -13,14 +13,28 @@
     <ErrorState Message="@_serverError" Class="mb-4" />
 }
 
-<CustomerForm Model="_form" IsSubmitting="_isSubmitting" IsEditing="@_editingId.HasValue" OnSubmit="SaveAsync" />
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.subtitle1">Deactivate for operational pause, soft delete for admin-only removal from lists.</MudText>
+    <MudSwitch T="bool" Color="Color.Primary" Value="_showDeleted" ValueChanged="ToggleDeletedAsync">
+        Show Deleted
+    </MudSwitch>
+</MudStack>
+
+@if (!_showDeleted)
+{
+    <CustomerForm Model="_form" IsSubmitting="_isSubmitting" IsEditing="@_editingId.HasValue" OnSubmit="SaveAsync" />
+}
+
 <CustomerTable IsLoading="_isLoading"
+               ShowDeleted="_showDeleted"
                SearchTerm="_searchTerm"
                ReloadKey="_tableReloadKey"
                SearchTermChanged="OnSearchChanged"
                ServerData="LoadServerData"
                OnEdit="StartEdit"
-               OnDeactivate="DeactivateAsync" />
+               OnDeactivate="DeactivateAsync"
+               OnSoftDelete="SoftDeleteAsync"
+               OnRestore="RestoreAsync" />
 
 @code {
     private readonly UpdateCustomerRequest _form = new();
@@ -30,6 +44,7 @@
     private bool _isSubmitting;
     private int _tableReloadKey;
     private string? _serverError;
+    private bool _showDeleted;
     private string _searchTerm = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -44,7 +59,9 @@
 
         try
         {
-            var result = await CustomerApiClient.GetAllAsync();
+            var result = _showDeleted
+                ? await CustomerApiClient.GetDeletedAsync()
+                : await CustomerApiClient.GetAllAsync();
             _items.Clear();
             _items.AddRange(result);
         }
@@ -96,10 +113,74 @@
 
     private void StartEdit(CustomerDto item)
     {
+        if (_showDeleted)
+            return;
         _editingId = item.Id;
         _form.Name = item.Name;
         _form.Description = item.Description;
         _form.IsActive = item.IsActive;
+    }
+
+    private async Task SoftDeleteAsync(CustomerDto item)
+    {
+        _serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Soft Delete Customer",
+            content: $"Soft delete customer '{item.Name}'? It will be hidden from normal lists but kept for history and can be restored later.",
+            buttonText: "Soft Delete",
+            color: Color.Error);
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var result = await CustomerApiClient.SoftDeleteAsync(item.Id);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add("Customer soft deleted.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Soft delete failed: {ex.Message}";
+        }
+    }
+
+    private async Task RestoreAsync(CustomerDto item)
+    {
+        _serverError = null;
+
+        var confirmed = await ConfirmAsync(
+            title: "Restore Customer",
+            content: $"Restore customer '{item.Name}'?",
+            buttonText: "Restore",
+            color: Color.Success);
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var result = await CustomerApiClient.RestoreAsync(item.Id);
+            if (!result.Success)
+            {
+                _serverError = result.ErrorMessage;
+                return;
+            }
+
+            Snackbar.Add("Customer restored.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _serverError = $"Restore failed: {ex.Message}";
+        }
     }
 
     private async Task DeactivateAsync(CustomerDto item)
@@ -171,6 +252,16 @@
     {
         _searchTerm = value;
         return Task.CompletedTask;
+    }
+
+    private async Task ToggleDeletedAsync(bool value)
+    {
+        _showDeleted = value;
+        if (_showDeleted)
+        {
+            ResetForm();
+        }
+        await LoadAsync();
     }
 
     private async Task<bool> ConfirmAsync(string title, string content, string buttonText, Color color)
