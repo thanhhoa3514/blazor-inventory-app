@@ -1,0 +1,45 @@
+@page "/purchase-request-drafts"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject PurchaseRequestDraftApiClient PurchaseRequestDraftApiClient
+
+<PageTitle>Purchase Request Drafts</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Purchase Request Drafts</MudText>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" Class="mb-4" />
+}
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading purchase request drafts..." />
+}
+else
+{
+    <PurchaseRequestDraftTable Items="_items" />
+}
+
+@code {
+    private readonly List<PurchaseRequestDraftListDto> _items = new();
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var items = await PurchaseRequestDraftApiClient.GetAllAsync();
+            _items.Clear();
+            _items.AddRange(items);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load drafts: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

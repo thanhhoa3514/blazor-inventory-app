@@ -2,6 +2,9 @@
 @attribute [Authorize]
 @inject ReorderApiClient ReorderApiClient
 @inject CategoryApiClient CategoryApiClient
+@inject PurchaseRequestDraftApiClient PurchaseRequestDraftApiClient
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>Reorder Recommendations</PageTitle>
 
@@ -47,12 +50,19 @@ else
         </MudItem>
     </MudGrid>
 
-    <ReorderTable Items="_items" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4" Disabled="@(_selectedProductIds.Count == 0)" OnClick="CreateDraftAsync">
+        Create Draft (@_selectedProductIds.Count)
+    </MudButton>
+
+    <ReorderTable Items="_items"
+                  SelectedProductIds="_selectedProductIds"
+                  OnToggleSelection="ToggleSelectionAsync" />
 }
 
 @code {
     private readonly List<ReorderRecommendationDto> _items = new();
     private readonly List<CategoryDto> _categories = new();
+    private readonly HashSet<int> _selectedProductIds = new();
     private bool _isLoading = true;
     private string? _error;
     private string _search = string.Empty;
@@ -85,6 +95,7 @@ else
 
             _items.Clear();
             _items.AddRange(items);
+            _selectedProductIds.RemoveWhere(id => _items.All(x => x.ProductId != id));
         }
         catch (Exception ex)
         {
@@ -112,5 +123,41 @@ else
     {
         _priority = value;
         await LoadAsync();
+    }
+
+    private Task ToggleSelectionAsync((ReorderRecommendationDto Item, bool Selected) args)
+    {
+        if (args.Selected)
+            _selectedProductIds.Add(args.Item.ProductId);
+        else
+            _selectedProductIds.Remove(args.Item.ProductId);
+        return Task.CompletedTask;
+    }
+
+    private async Task CreateDraftAsync()
+    {
+        var selected = _items.Where(x => _selectedProductIds.Contains(x.ProductId)).ToList();
+        if (selected.Count == 0)
+            return;
+
+        var draft = await PurchaseRequestDraftApiClient.CreateAsync(new CreatePurchaseRequestDraftRequest
+        {
+            Lines = selected.Select(x => new CreatePurchaseRequestDraftLineRequest
+            {
+                ProductId = x.ProductId,
+                SuggestedQty = x.SuggestedReorderQty,
+                RequestedQty = x.SuggestedReorderQty > 0 ? x.SuggestedReorderQty : 1
+            }).ToList()
+        });
+
+        if (draft is null)
+        {
+            _error = "Failed to create purchase request draft.";
+            return;
+        }
+
+        Snackbar.Add("Purchase request draft created.", Severity.Success);
+        _selectedProductIds.Clear();
+        Navigation.NavigateTo($"/purchase-request-drafts/{draft.Id}");
     }
 }

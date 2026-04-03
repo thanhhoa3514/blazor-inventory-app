@@ -1,0 +1,169 @@
+@page "/purchase-request-drafts/{Id:int}"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject PurchaseRequestDraftApiClient PurchaseRequestDraftApiClient
+@inject ISnackbar Snackbar
+
+<PageTitle>Purchase Request Draft Detail</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Purchase Request Draft Detail</MudText>
+
+@if (_isLoading)
+{
+    <LoadingState Message="Loading draft..." />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <ErrorState Message="@_error" />
+}
+else if (_item is null)
+{
+    <ErrorState Message="Draft not found." Severity="Severity.Warning" />
+}
+else
+{
+    <MudPaper Elevation="1" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="6"><MudText><b>Draft No:</b> @_item.DraftNo</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Status:</b> @_item.Status</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Created:</b> @_item.CreatedAtUtc.ToLocalTime().ToString("g")</MudText></MudItem>
+            <MudItem xs="12" md="6"><MudText><b>Created By:</b> @_item.CreatedByUserName</MudText></MudItem>
+            <MudItem xs="12"><MudText><b>Note:</b> @_item.Note</MudText></MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (_item.Status != PurchaseRequestDraftStatuses.Draft)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+            This purchase request has been prepared and is now read-only.
+        </MudAlert>
+    }
+
+    <MudTable T="PurchaseRequestDraftLineDto" Items="_item.Lines" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>SKU</MudTh>
+            <MudTh>Product</MudTh>
+            <MudTh>Supplier</MudTh>
+            <MudTh>Suggested</MudTh>
+            <MudTh>Requested</MudTh>
+            <MudTh class="text-right">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ProductSku</MudTd>
+            <MudTd>@context.ProductName</MudTd>
+            <MudTd>@(context.SupplierName ?? "Unassigned")</MudTd>
+            <MudTd>@context.SuggestedQty</MudTd>
+            <MudTd>
+                <MudNumericField T="int"
+                                 Value="@context.RequestedQty"
+                                 ValueChanged="@(value => UpdateLineAsync(context, value))"
+                                 Min="1"
+                                 Immediate="true"
+                                 Disabled="@(_item.Status != PurchaseRequestDraftStatuses.Draft)"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense" />
+            </MudTd>
+            <MudTd Class="text-right">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           Size="Size.Small"
+                           Disabled="@(_item.Status != PurchaseRequestDraftStatuses.Draft)"
+                           OnClick="@(() => RemoveLineAsync(context))">
+                    Remove
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    @if (_item.Status == PurchaseRequestDraftStatuses.Draft)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="PrepareAsync">
+            Mark Prepared
+        </MudButton>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _isLoading = true;
+    private string? _error;
+    private PurchaseRequestDraftDetailDto? _item;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        try
+        {
+            _item = await PurchaseRequestDraftApiClient.GetByIdAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load draft: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task UpdateLineAsync(PurchaseRequestDraftLineDto line, int value)
+    {
+        if (_item is null || value <= 0)
+            return;
+
+        var result = await PurchaseRequestDraftApiClient.UpdateLineAsync(_item.Id, line.Id, new UpdatePurchaseRequestDraftLineRequest
+        {
+            RequestedQty = value
+        });
+
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            Snackbar.Add(result.ErrorMessage ?? "Failed to update draft line.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Requested quantity updated.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task RemoveLineAsync(PurchaseRequestDraftLineDto line)
+    {
+        if (_item is null)
+            return;
+
+        var result = await PurchaseRequestDraftApiClient.RemoveLineAsync(_item.Id, line.Id);
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            Snackbar.Add(result.ErrorMessage ?? "Failed to remove draft line.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Draft line removed.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task PrepareAsync()
+    {
+        if (_item is null)
+            return;
+
+        var result = await PurchaseRequestDraftApiClient.PrepareAsync(_item.Id);
+        if (result is null)
+        {
+            _error = "Failed to prepare draft.";
+            Snackbar.Add(_error, Severity.Error);
+            return;
+        }
+
+        _item = result;
+        Snackbar.Add("Draft marked as prepared.", Severity.Success);
+    }
+}

@@ -37,6 +37,11 @@
                     </AuthorizeView>
                     <MudNavLink Href="/products" Icon="@Icons.Material.Filled.Inventory2">Products</MudNavLink>
                     <MudNavLink Href="/reorder-recommendations" Icon="@Icons.Material.Filled.AssignmentTurnedIn">Reorder</MudNavLink>
+                    <AuthorizeView Roles="@AppRoles.Admin">
+                        <Authorized Context="purchasingState">
+                            <MudNavLink Href="/purchase-request-drafts" Icon="@Icons.Material.Filled.ShoppingCartCheckout">Purchase Drafts</MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
                     <MudNavLink Href="/receipts" Icon="@Icons.Material.Filled.MoveToInbox">Inbound</MudNavLink>
                     <MudNavLink Href="/issues" Icon="@Icons.Material.Filled.Outbox">Outbound</MudNavLink>
                     <MudNavLink Href="/adjustments" Icon="@Icons.Material.Filled.SyncAlt">Adjustments</MudNavLink>

@@ -9,6 +9,8 @@ using MyApp.Server.Application.Customers.Commands;
 using MyApp.Server.Application.Customers.Queries;
 using MyApp.Server.Application.Inventory.Commands;
 using MyApp.Server.Application.Inventory.Queries;
+using MyApp.Server.Application.Purchasing.Commands;
+using MyApp.Server.Application.Purchasing.Queries;
 using MyApp.Server.Application.Products.Commands;
 using MyApp.Server.Application.Products.Queries;
 using MyApp.Server.Application.Suppliers.Commands;
@@ -104,6 +106,7 @@ builder.Services.AddScoped<IStockIssueRepository, StockIssueRepository>();
 builder.Services.AddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
 builder.Services.AddScoped<IInventoryReadRepository, InventoryReadRepository>();
 builder.Services.AddScoped<IReorderReadRepository, ReorderReadRepository>();
+builder.Services.AddScoped<IPurchaseRequestDraftRepository, PurchaseRequestDraftRepository>();
 builder.Services.AddScoped<IInventoryUnitOfWork, InventoryUnitOfWork>();
 builder.Services.AddScoped<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
 builder.Services.AddScoped<IAuditLogWriter, AuditLogWriter>();
@@ -152,6 +155,14 @@ builder.Services.AddScoped<CreateIssueCommand>();
 builder.Services.AddScoped<CreateAdjustmentCommand>();
 builder.Services.AddScoped<GetProductStockCardQuery>();
 builder.Services.AddScoped<GetReorderRecommendationsQuery>();
+
+// Purchasing draft commands/queries
+builder.Services.AddScoped<CreatePurchaseRequestDraftCommand>();
+builder.Services.AddScoped<UpdatePurchaseRequestDraftLineCommand>();
+builder.Services.AddScoped<RemovePurchaseRequestDraftLineCommand>();
+builder.Services.AddScoped<PreparePurchaseRequestDraftCommand>();
+builder.Services.AddScoped<GetAllPurchaseRequestDraftsQuery>();
+builder.Services.AddScoped<GetPurchaseRequestDraftByIdQuery>();
 
 // Audit queries
 builder.Services.AddScoped<GetAuditLogsQuery>();

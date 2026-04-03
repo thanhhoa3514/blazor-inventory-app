@@ -2,6 +2,7 @@
 
 <MudTable T="ReorderRecommendationDto" Items="Items" Hover="true" Dense="true">
     <HeaderContent>
+        <MudTh>Select</MudTh>
         <MudTh>SKU</MudTh>
         <MudTh>Product</MudTh>
         <MudTh>Category</MudTh>
@@ -14,6 +15,9 @@
         <MudTh class="text-right">Actions</MudTh>
     </HeaderContent>
     <RowTemplate>
+        <MudTd DataLabel="Select">
+            <MudCheckBox T="bool" Value="@SelectedProductIds.Contains(context.ProductId)" ValueChanged="@(value => OnToggleSelection.InvokeAsync((context, value)))" />
+        </MudTd>
         <MudTd DataLabel="SKU">@context.Sku</MudTd>
         <MudTd DataLabel="Product">@context.ProductName</MudTd>
         <MudTd DataLabel="Category">@context.CategoryName</MudTd>
@@ -40,6 +44,8 @@
 
 @code {
     [Parameter] public IReadOnlyList<ReorderRecommendationDto> Items { get; set; } = Array.Empty<ReorderRecommendationDto>();
+    [Parameter] public IReadOnlySet<int> SelectedProductIds { get; set; } = new HashSet<int>();
+    [Parameter] public EventCallback<(ReorderRecommendationDto Item, bool Selected)> OnToggleSelection { get; set; }
 
     private static Color PriorityColor(string priority)
         => priority switch

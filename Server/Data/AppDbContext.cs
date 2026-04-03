@@ -22,6 +22,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StockIssueLine> StockIssueLines => Set<StockIssueLine>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
     public DbSet<StockAdjustmentLine> StockAdjustmentLines => Set<StockAdjustmentLine>();
+    public DbSet<PurchaseRequestDraft> PurchaseRequestDrafts => Set<PurchaseRequestDraft>();
+    public DbSet<PurchaseRequestDraftLine> PurchaseRequestDraftLines => Set<PurchaseRequestDraftLine>();
     public DbSet<InventoryLedgerEntry> InventoryLedgerEntries => Set<InventoryLedgerEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -199,6 +201,40 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(x => x.Product)
                 .WithMany(x => x.AdjustmentLines)
                 .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PurchaseRequestDraft>(entity =>
+        {
+            entity.ToTable("PurchaseRequestDrafts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DraftNo).IsRequired().HasMaxLength(50);
+            entity.HasIndex(x => x.DraftNo).IsUnique();
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(30);
+            entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
+            entity.Property(x => x.CreatedByUserName).IsRequired().HasMaxLength(256);
+            entity.Property(x => x.Note).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<PurchaseRequestDraftLine>(entity =>
+        {
+            entity.ToTable("PurchaseRequestDraftLines", table =>
+            {
+                table.HasCheckConstraint("CK_PurchaseRequestDraftLines_SuggestedQty_NonNegative", "[SuggestedQty] >= 0");
+                table.HasCheckConstraint("CK_PurchaseRequestDraftLines_RequestedQty_Positive", "[RequestedQty] > 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.HasOne(x => x.PurchaseRequestDraft)
+                .WithMany(x => x.Lines)
+                .HasForeignKey(x => x.PurchaseRequestDraftId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Supplier)
+                .WithMany()
+                .HasForeignKey(x => x.SupplierId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

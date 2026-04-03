@@ -1,0 +1,28 @@
+@namespace MyApp.Client.Features.Purchasing.Components
+
+<MudTable T="PurchaseRequestDraftListDto" Items="Items" Hover="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Draft No</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Created</MudTh>
+        <MudTh>Created By</MudTh>
+        <MudTh>Lines</MudTh>
+        <MudTh Class="text-right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Draft No">@context.DraftNo</MudTd>
+        <MudTd DataLabel="Status">@context.Status</MudTd>
+        <MudTd DataLabel="Created">@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd DataLabel="Created By">@context.CreatedByUserName</MudTd>
+        <MudTd DataLabel="Lines">@context.LineCount</MudTd>
+        <MudTd DataLabel="Actions" Class="text-right">
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Href="@($"/purchase-request-drafts/{context.Id}")">
+                Detail
+            </MudButton>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    [Parameter] public IReadOnlyList<PurchaseRequestDraftListDto> Items { get; set; } = Array.Empty<PurchaseRequestDraftListDto>();
+}

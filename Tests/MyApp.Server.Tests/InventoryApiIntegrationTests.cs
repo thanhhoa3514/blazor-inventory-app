@@ -491,6 +491,140 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task PurchaseRequestDraftLifecycle_AsAdmin_CanCreateEditAndPrepare()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "admin", AdminPassword);
+
+        var createCategory = await client.PostAsJsonAsync("/api/categories", new CreateCategoryRequest
+        {
+            Name = "Purchase Draft Category",
+            Description = "Purchase draft integration test"
+        });
+        createCategory.EnsureSuccessStatusCode();
+        var category = await createCategory.Content.ReadFromJsonAsync<CategoryDto>();
+        Assert.NotNull(category);
+
+        var firstProductResponse = await client.PostAsJsonAsync("/api/products", new CreateProductRequest
+        {
+            Sku = "PRD-001",
+            Name = "Draft Product One",
+            CategoryId = category!.Id,
+            ReorderLevel = 4,
+            TargetStockLevel = 12
+        });
+        firstProductResponse.EnsureSuccessStatusCode();
+        var firstProduct = await firstProductResponse.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(firstProduct);
+
+        var secondProductResponse = await client.PostAsJsonAsync("/api/products", new CreateProductRequest
+        {
+            Sku = "PRD-002",
+            Name = "Draft Product Two",
+            CategoryId = category.Id,
+            ReorderLevel = 3,
+            TargetStockLevel = 8
+        });
+        secondProductResponse.EnsureSuccessStatusCode();
+        var secondProduct = await secondProductResponse.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(secondProduct);
+
+        var recommendations = await client.GetFromJsonAsync<List<ReorderRecommendationDto>>($"/api/inventory/reorder-recommendations?categoryId={category.Id}");
+        Assert.NotNull(recommendations);
+
+        var firstRecommendation = Assert.Single(recommendations!, x => x.ProductId == firstProduct!.Id);
+        var secondRecommendation = Assert.Single(recommendations, x => x.ProductId == secondProduct!.Id);
+
+        var createDraftResponse = await client.PostAsJsonAsync("/api/purchase-request-drafts", new CreatePurchaseRequestDraftRequest
+        {
+            Note = "Created from recommendations",
+            Lines =
+            [
+                new CreatePurchaseRequestDraftLineRequest
+                {
+                    ProductId = firstRecommendation.ProductId,
+                    SuggestedQty = firstRecommendation.SuggestedReorderQty,
+                    RequestedQty = firstRecommendation.SuggestedReorderQty
+                },
+                new CreatePurchaseRequestDraftLineRequest
+                {
+                    ProductId = secondRecommendation.ProductId,
+                    SuggestedQty = secondRecommendation.SuggestedReorderQty,
+                    RequestedQty = secondRecommendation.SuggestedReorderQty
+                }
+            ]
+        });
+        Assert.Equal(HttpStatusCode.Created, createDraftResponse.StatusCode);
+
+        var createdDraft = await createDraftResponse.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>();
+        Assert.NotNull(createdDraft);
+        Assert.Equal(PurchaseRequestDraftStatuses.Draft, createdDraft!.Status);
+        Assert.Equal("admin", createdDraft.CreatedByUserName);
+        Assert.Equal(2, createdDraft.Lines.Count);
+
+        var list = await client.GetFromJsonAsync<List<PurchaseRequestDraftListDto>>("/api/purchase-request-drafts");
+        Assert.NotNull(list);
+        Assert.Contains(list!, x => x.Id == createdDraft.Id && x.LineCount == 2);
+
+        var lineToUpdate = createdDraft.Lines[0];
+        var updateLineResponse = await client.PutAsJsonAsync(
+            $"/api/purchase-request-drafts/{createdDraft.Id}/lines/{lineToUpdate.Id}",
+            new UpdatePurchaseRequestDraftLineRequest
+            {
+                RequestedQty = lineToUpdate.RequestedQty + 2
+            });
+        updateLineResponse.EnsureSuccessStatusCode();
+
+        var updatedDraft = await updateLineResponse.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>();
+        Assert.NotNull(updatedDraft);
+        Assert.Contains(updatedDraft!.Lines, x => x.Id == lineToUpdate.Id && x.RequestedQty == lineToUpdate.RequestedQty + 2);
+
+        var lineToRemove = updatedDraft.Lines.Single(x => x.ProductId == secondProduct!.Id);
+        var removeLineResponse = await client.DeleteAsync($"/api/purchase-request-drafts/{createdDraft.Id}/lines/{lineToRemove.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, removeLineResponse.StatusCode);
+
+        var afterRemoval = await client.GetFromJsonAsync<PurchaseRequestDraftDetailDto>($"/api/purchase-request-drafts/{createdDraft.Id}");
+        Assert.NotNull(afterRemoval);
+        Assert.Single(afterRemoval!.Lines);
+
+        var prepareResponse = await client.PostAsync($"/api/purchase-request-drafts/{createdDraft.Id}/prepare", null);
+        prepareResponse.EnsureSuccessStatusCode();
+        var preparedDraft = await prepareResponse.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>();
+        Assert.NotNull(preparedDraft);
+        Assert.Equal(PurchaseRequestDraftStatuses.Prepared, preparedDraft!.Status);
+        Assert.Single(preparedDraft.Lines);
+
+        var updatePreparedResponse = await client.PutAsJsonAsync(
+            $"/api/purchase-request-drafts/{createdDraft.Id}/lines/{preparedDraft.Lines[0].Id}",
+            new UpdatePurchaseRequestDraftLineRequest { RequestedQty = 99 });
+        Assert.Equal(HttpStatusCode.BadRequest, updatePreparedResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task PurchaseRequestDraftEndpoints_AsWarehouseStaff_ReturnForbidden()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, "staff", StaffPassword);
+
+        var listResponse = await client.GetAsync("/api/purchase-request-drafts");
+        Assert.Equal(HttpStatusCode.Forbidden, listResponse.StatusCode);
+
+        var createResponse = await client.PostAsJsonAsync("/api/purchase-request-drafts", new CreatePurchaseRequestDraftRequest
+        {
+            Lines =
+            [
+                new CreatePurchaseRequestDraftLineRequest
+                {
+                    ProductId = 1,
+                    SuggestedQty = 1,
+                    RequestedQty = 1
+                }
+            ]
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, createResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateIssue_AsViewer_ReturnsForbidden()
     {
         using var client = CreateClient();
