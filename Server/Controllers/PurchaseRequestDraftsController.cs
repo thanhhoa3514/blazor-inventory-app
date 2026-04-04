@@ -19,6 +19,7 @@ public class PurchaseRequestDraftsController : ControllerBase
     private readonly UpdatePurchaseRequestDraftLineCommand _updateLine;
     private readonly RemovePurchaseRequestDraftLineCommand _removeLine;
     private readonly PreparePurchaseRequestDraftCommand _prepare;
+    private readonly ReviewPurchaseRequestDraftCommand _review;
 
     public PurchaseRequestDraftsController(
         GetAllPurchaseRequestDraftsQuery getAll,
@@ -26,7 +27,8 @@ public class PurchaseRequestDraftsController : ControllerBase
         CreatePurchaseRequestDraftCommand create,
         UpdatePurchaseRequestDraftLineCommand updateLine,
         RemovePurchaseRequestDraftLineCommand removeLine,
-        PreparePurchaseRequestDraftCommand prepare)
+        PreparePurchaseRequestDraftCommand prepare,
+        ReviewPurchaseRequestDraftCommand review)
     {
         _getAll = getAll;
         _getById = getById;
@@ -34,6 +36,7 @@ public class PurchaseRequestDraftsController : ControllerBase
         _updateLine = updateLine;
         _removeLine = removeLine;
         _prepare = prepare;
+        _review = review;
     }
 
     [HttpGet]
@@ -100,6 +103,19 @@ public class PurchaseRequestDraftsController : ControllerBase
     public async Task<ActionResult<PurchaseRequestDraftDetailDto>> Prepare(int id, CancellationToken cancellationToken)
     {
         var result = await _prepare.ExecuteAsync(id, cancellationToken);
+        return result switch
+        {
+            AppResult<PurchaseRequestDraftDetailDto>.Ok ok => Ok(ok.Value),
+            AppResult<PurchaseRequestDraftDetailDto>.NotFound => NotFound(),
+            AppResult<PurchaseRequestDraftDetailDto>.ValidationError err => BadRequest(err.Message),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:int}/review")]
+    public async Task<ActionResult<PurchaseRequestDraftDetailDto>> Review(int id, CancellationToken cancellationToken)
+    {
+        var result = await _review.ExecuteAsync(id, cancellationToken);
         return result switch
         {
             AppResult<PurchaseRequestDraftDetailDto>.Ok ok => Ok(ok.Value),

@@ -51,7 +51,7 @@ public sealed class CreatePurchaseRequestDraftCommand
             draft.Lines.Add(new PurchaseRequestDraftLine
             {
                 ProductId = product.Id,
-                SupplierId = null,
+                SupplierId = product.PreferredSupplierId,
                 SuggestedQty = line.SuggestedQty,
                 RequestedQty = line.RequestedQty
             });

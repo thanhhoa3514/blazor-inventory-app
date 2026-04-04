@@ -8,6 +8,7 @@ public sealed class ProductEditorModel
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int CategoryId { get; set; }
+    public int? PreferredSupplierId { get; set; }
     public int ReorderLevel { get; set; } = 5;
     public int TargetStockLevel { get; set; } = 10;
     public bool IsActive { get; set; } = true;
@@ -18,6 +19,7 @@ public sealed class ProductEditorModel
         Name = Name,
         Description = Description,
         CategoryId = CategoryId,
+        PreferredSupplierId = PreferredSupplierId,
         ReorderLevel = ReorderLevel,
         TargetStockLevel = TargetStockLevel
     };
@@ -28,6 +30,7 @@ public sealed class ProductEditorModel
         Name = Name,
         Description = Description,
         CategoryId = CategoryId,
+        PreferredSupplierId = PreferredSupplierId,
         ReorderLevel = ReorderLevel,
         TargetStockLevel = TargetStockLevel,
         IsActive = IsActive
@@ -39,6 +42,7 @@ public sealed class ProductEditorModel
         Name = string.Empty;
         Description = null;
         CategoryId = 0;
+        PreferredSupplierId = null;
         ReorderLevel = 5;
         TargetStockLevel = 10;
         IsActive = true;
@@ -50,6 +54,7 @@ public sealed class ProductEditorModel
         Name = item.Name;
         Description = item.Description;
         CategoryId = item.CategoryId;
+        PreferredSupplierId = item.PreferredSupplierId;
         ReorderLevel = item.ReorderLevel;
         TargetStockLevel = item.TargetStockLevel;
         IsActive = item.IsActive;

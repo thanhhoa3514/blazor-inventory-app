@@ -26,6 +26,9 @@ public sealed class PreparePurchaseRequestDraftCommand
             return new AppResult<PurchaseRequestDraftDetailDto>.ValidationError("Draft must contain at least one line before it can be prepared.");
 
         draft.Status = PurchaseRequestDraftStatuses.Prepared;
+        draft.ReviewedAtUtc = null;
+        draft.ReviewedByUserId = null;
+        draft.ReviewedByUserName = null;
         await _drafts.SaveChangesAsync(ct);
 
         var dto = await _drafts.GetByIdAsync(draftId, ct);

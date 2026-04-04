@@ -9,6 +9,8 @@ public record ProductDto(
     string? Description,
     int CategoryId,
     string CategoryName,
+    int? PreferredSupplierId,
+    string? PreferredSupplierName,
     int OnHandQty,
     decimal AverageCost,
     int ReorderLevel,
@@ -38,6 +40,8 @@ public class CreateProductRequest
 
     [Range(0, int.MaxValue)]
     public int TargetStockLevel { get; set; } = 10;
+
+    public int? PreferredSupplierId { get; set; }
 }
 
 public class UpdateProductRequest : CreateProductRequest

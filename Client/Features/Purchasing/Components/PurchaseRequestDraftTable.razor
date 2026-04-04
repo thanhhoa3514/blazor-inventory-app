@@ -6,6 +6,7 @@
         <MudTh>Status</MudTh>
         <MudTh>Created</MudTh>
         <MudTh>Created By</MudTh>
+        <MudTh>Reviewed By</MudTh>
         <MudTh>Lines</MudTh>
         <MudTh Class="text-right">Actions</MudTh>
     </HeaderContent>
@@ -14,6 +15,16 @@
         <MudTd DataLabel="Status">@context.Status</MudTd>
         <MudTd DataLabel="Created">@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
         <MudTd DataLabel="Created By">@context.CreatedByUserName</MudTd>
+        <MudTd DataLabel="Reviewed By">
+            @if (context.ReviewedAtUtc.HasValue)
+            {
+                <span>@context.ReviewedByUserName (@context.ReviewedAtUtc.Value.ToLocalTime().ToString("g"))</span>
+            }
+            else
+            {
+                <span>—</span>
+            }
+        </MudTd>
         <MudTd DataLabel="Lines">@context.LineCount</MudTd>
         <MudTd DataLabel="Actions" Class="text-right">
             <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Href="@($"/purchase-request-drafts/{context.Id}")">

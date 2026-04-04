@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject ProductApiClient ProductApiClient
 @inject CategoryApiClient CategoryApiClient
+@inject SupplierApiClient SupplierApiClient
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
@@ -16,7 +17,7 @@
 
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.subtitle1">Manage products and restore deleted ones.</MudText>
-    <MudSwitch T="bool" Color="Color.Primary" Value="_showDeleted" ValueChanged="ToggleDeletedAsync">
+<MudSwitch T="bool" Color="Color.Primary" Value="_showDeleted" ValueChanged="ToggleDeletedAsync">
         Show Deleted
     </MudSwitch>
 </MudStack>
@@ -25,6 +26,7 @@
 {
     <ProductForm Model="_form"
                  Categories="_categories"
+                 Suppliers="_suppliers"
                  IsSubmitting="_isSubmitting"
                  IsEditing="@_editingId.HasValue"
                  OnSubmit="SaveAsync" />
@@ -45,6 +47,7 @@
     private readonly ProductFilterModel _filter = new();
     private readonly List<ProductDto> _items = new();
     private readonly List<CategoryDto> _categories = new();
+    private readonly List<SupplierDto> _suppliers = new();
 
     private int? _editingId;
     private bool _isLoading = true;
@@ -73,6 +76,17 @@
         catch (Exception ex)
         {
             errors.Add($"categories: {ex.Message}");
+        }
+
+        try
+        {
+            var suppliers = await SupplierApiClient.GetActiveAsync();
+            _suppliers.Clear();
+            _suppliers.AddRange(suppliers);
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"suppliers: {ex.Message}");
         }
 
         try
@@ -215,7 +229,8 @@
             query = query.Where(x =>
                 x.Sku.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
                 x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                x.CategoryName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+                x.CategoryName.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                (x.PreferredSupplierName?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
         query = state.SortLabel switch

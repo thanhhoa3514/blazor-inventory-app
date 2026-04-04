@@ -64,6 +64,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany(x => x.Products)
                 .HasForeignKey(x => x.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.PreferredSupplier)
+                .WithMany()
+                .HasForeignKey(x => x.PreferredSupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Supplier>(entity =>
@@ -213,6 +217,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Status).IsRequired().HasMaxLength(30);
             entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
             entity.Property(x => x.CreatedByUserName).IsRequired().HasMaxLength(256);
+            entity.Property(x => x.ReviewedByUserId).HasMaxLength(450);
+            entity.Property(x => x.ReviewedByUserName).HasMaxLength(256);
             entity.Property(x => x.Note).HasMaxLength(500);
         });
 

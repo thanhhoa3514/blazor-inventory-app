@@ -496,6 +496,9 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
         using var client = CreateClient();
         await LoginAsync(client, "admin", AdminPassword);
 
+        var primarySupplier = await CreateSupplierAsync(client, "Draft Preferred Supplier");
+        var alternateSupplier = await CreateSupplierAsync(client, "Draft Alternate Supplier");
+
         var createCategory = await client.PostAsJsonAsync("/api/categories", new CreateCategoryRequest
         {
             Name = "Purchase Draft Category",
@@ -510,6 +513,7 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
             Sku = "PRD-001",
             Name = "Draft Product One",
             CategoryId = category!.Id,
+            PreferredSupplierId = primarySupplier.Id,
             ReorderLevel = 4,
             TargetStockLevel = 12
         });
@@ -522,12 +526,18 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
             Sku = "PRD-002",
             Name = "Draft Product Two",
             CategoryId = category.Id,
+            PreferredSupplierId = alternateSupplier.Id,
             ReorderLevel = 3,
             TargetStockLevel = 8
         });
         secondProductResponse.EnsureSuccessStatusCode();
         var secondProduct = await secondProductResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(secondProduct);
+
+        var products = await client.GetFromJsonAsync<List<ProductDto>>("/api/products");
+        Assert.NotNull(products);
+        Assert.Contains(products!, x => x.Id == firstProduct!.Id && x.PreferredSupplierId == primarySupplier.Id && x.PreferredSupplierName == primarySupplier.Name);
+        Assert.Contains(products, x => x.Id == secondProduct!.Id && x.PreferredSupplierId == alternateSupplier.Id && x.PreferredSupplierName == alternateSupplier.Name);
 
         var recommendations = await client.GetFromJsonAsync<List<ReorderRecommendationDto>>($"/api/inventory/reorder-recommendations?categoryId={category.Id}");
         Assert.NotNull(recommendations);
@@ -561,6 +571,8 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
         Assert.Equal(PurchaseRequestDraftStatuses.Draft, createdDraft!.Status);
         Assert.Equal("admin", createdDraft.CreatedByUserName);
         Assert.Equal(2, createdDraft.Lines.Count);
+        Assert.Contains(createdDraft.Lines, x => x.ProductId == firstProduct.Id && x.SupplierId == primarySupplier.Id && x.SupplierName == primarySupplier.Name);
+        Assert.Contains(createdDraft.Lines, x => x.ProductId == secondProduct.Id && x.SupplierId == alternateSupplier.Id && x.SupplierName == alternateSupplier.Name);
 
         var list = await client.GetFromJsonAsync<List<PurchaseRequestDraftListDto>>("/api/purchase-request-drafts");
         Assert.NotNull(list);
@@ -587,6 +599,9 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
         Assert.NotNull(afterRemoval);
         Assert.Single(afterRemoval!.Lines);
 
+        var earlyReviewResponse = await client.PostAsync($"/api/purchase-request-drafts/{createdDraft.Id}/review", null);
+        Assert.Equal(HttpStatusCode.BadRequest, earlyReviewResponse.StatusCode);
+
         var prepareResponse = await client.PostAsync($"/api/purchase-request-drafts/{createdDraft.Id}/prepare", null);
         prepareResponse.EnsureSuccessStatusCode();
         var preparedDraft = await prepareResponse.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>();
@@ -596,8 +611,29 @@ public class InventoryApiIntegrationTests : IClassFixture<CustomWebApplicationFa
 
         var updatePreparedResponse = await client.PutAsJsonAsync(
             $"/api/purchase-request-drafts/{createdDraft.Id}/lines/{preparedDraft.Lines[0].Id}",
-            new UpdatePurchaseRequestDraftLineRequest { RequestedQty = 99 });
-        Assert.Equal(HttpStatusCode.BadRequest, updatePreparedResponse.StatusCode);
+            new UpdatePurchaseRequestDraftLineRequest
+            {
+                RequestedQty = preparedDraft.Lines[0].RequestedQty,
+                SupplierId = alternateSupplier.Id
+            });
+        updatePreparedResponse.EnsureSuccessStatusCode();
+        preparedDraft = await updatePreparedResponse.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>();
+        Assert.NotNull(preparedDraft);
+        Assert.Equal(alternateSupplier.Id, preparedDraft!.Lines[0].SupplierId);
+        Assert.Equal(alternateSupplier.Name, preparedDraft.Lines[0].SupplierName);
+
+        var reviewResponse = await client.PostAsync($"/api/purchase-request-drafts/{createdDraft.Id}/review", null);
+        reviewResponse.EnsureSuccessStatusCode();
+        var reviewedDraft = await reviewResponse.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>();
+        Assert.NotNull(reviewedDraft);
+        Assert.Equal(PurchaseRequestDraftStatuses.Reviewed, reviewedDraft!.Status);
+        Assert.Equal("admin", reviewedDraft.ReviewedByUserName);
+        Assert.True(reviewedDraft.ReviewedAtUtc.HasValue);
+
+        var updateReviewedResponse = await client.PutAsJsonAsync(
+            $"/api/purchase-request-drafts/{createdDraft.Id}/lines/{preparedDraft.Lines[0].Id}",
+            new UpdatePurchaseRequestDraftLineRequest { RequestedQty = 99, SupplierId = primarySupplier.Id });
+        Assert.Equal(HttpStatusCode.BadRequest, updateReviewedResponse.StatusCode);
     }
 
     [Fact]

@@ -12,6 +12,7 @@
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="sku">SKU</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="name">Name</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="category">Category</MudTableSortLabel></MudTh>
+        <MudTh>Preferred Supplier</MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="onhand">On Hand</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="avgcost">Avg Cost</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel T="ProductDto" SortLabel="reorder">Reorder</MudTableSortLabel></MudTh>
@@ -23,6 +24,7 @@
         <MudTd DataLabel="SKU">@context.Sku</MudTd>
         <MudTd DataLabel="Name">@context.Name</MudTd>
         <MudTd DataLabel="Category">@context.CategoryName</MudTd>
+        <MudTd DataLabel="Preferred Supplier">@(context.PreferredSupplierName ?? "Unassigned")</MudTd>
         <MudTd DataLabel="On Hand">@context.OnHandQty</MudTd>
         <MudTd DataLabel="Avg Cost">@context.AverageCost.ToString("C")</MudTd>
         <MudTd DataLabel="Reorder">@context.ReorderLevel</MudTd>

@@ -57,4 +57,12 @@ public sealed class PurchaseRequestDraftApiClient
             return null;
         return await response.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>(cancellationToken);
     }
+
+    public async Task<PurchaseRequestDraftDetailDto?> ReviewAsync(int draftId, CancellationToken cancellationToken = default)
+    {
+        var response = await _httpClient.PostAsync($"api/purchase-request-drafts/{draftId}/review", null, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            return null;
+        return await response.Content.ReadFromJsonAsync<PurchaseRequestDraftDetailDto>(cancellationToken);
+    }
 }

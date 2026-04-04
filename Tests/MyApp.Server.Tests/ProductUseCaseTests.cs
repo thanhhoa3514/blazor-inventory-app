@@ -111,6 +111,60 @@ public class ProductUseCaseTests
         Assert.IsType<AppResult<ProductDto>.ValidationError>(result);
     }
 
+    [Fact]
+    public async Task CreateProduct_WithInactivePreferredSupplier_ReturnsValidationError()
+    {
+        await using var db = await CreateContextAsync();
+        var (repo, catId) = await CreateRepoWithCategoryAsync(db);
+        var supplierId = await CreateSupplierAsync(db, isActive: false);
+        var cmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+
+        var result = await cmd.ExecuteAsync(new CreateProductRequest
+        {
+            Sku = "SUP-001",
+            Name = "Supplier Bound Product",
+            CategoryId = catId,
+            PreferredSupplierId = supplierId,
+            ReorderLevel = 5,
+            TargetStockLevel = 10
+        });
+
+        Assert.IsType<AppResult<ProductDto>.ValidationError>(result);
+    }
+
+    [Fact]
+    public async Task UpdateProduct_WithActivePreferredSupplier_PersistsSupplier()
+    {
+        await using var db = await CreateContextAsync();
+        var (repo, catId) = await CreateRepoWithCategoryAsync(db);
+        var supplierId = await CreateSupplierAsync(db);
+        var createCmd = new CreateProductCommand(repo, new NoOpAuditLogWriter());
+        var updateCmd = new UpdateProductCommand(repo, new NoOpAuditLogWriter());
+
+        var created = (AppResult<ProductDto>.Ok)await createCmd.ExecuteAsync(new CreateProductRequest
+        {
+            Sku = "SUP-002",
+            Name = "Preferred Supplier Product",
+            CategoryId = catId,
+            ReorderLevel = 5,
+            TargetStockLevel = 10
+        });
+
+        var result = await updateCmd.ExecuteAsync(created.Value.Id, new UpdateProductRequest
+        {
+            Sku = "SUP-002",
+            Name = "Preferred Supplier Product",
+            CategoryId = catId,
+            PreferredSupplierId = supplierId,
+            ReorderLevel = 5,
+            TargetStockLevel = 10,
+            IsActive = true
+        });
+
+        var ok = Assert.IsType<AppResult<ProductDto>.Ok>(result);
+        Assert.Equal(supplierId, ok.Value.PreferredSupplierId);
+    }
+
     // ── duplicate SKU ───────────────────────────────────────────────────────
 
     [Fact]
@@ -312,5 +366,19 @@ public class ProductUseCaseTests
         await db.SaveChangesAsync();
 
         return (new ProductRepository(db), cat.Id);
+    }
+
+    private static async Task<int> CreateSupplierAsync(AppDbContext db, bool isActive = true)
+    {
+        var supplier = new Supplier
+        {
+            Name = $"Supplier-{Guid.NewGuid():N}",
+            IsActive = isActive,
+            CreatedAtUtc = DateTime.UtcNow,
+            LastUpdatedUtc = DateTime.UtcNow
+        };
+        db.Suppliers.Add(supplier);
+        await db.SaveChangesAsync();
+        return supplier.Id;
     }
 }

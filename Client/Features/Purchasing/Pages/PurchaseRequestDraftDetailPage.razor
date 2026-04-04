@@ -1,6 +1,7 @@
 @page "/purchase-request-drafts/{Id:int}"
 @attribute [Authorize(Roles = AppRoles.Admin)]
 @inject PurchaseRequestDraftApiClient PurchaseRequestDraftApiClient
+@inject SupplierApiClient SupplierApiClient
 @inject ISnackbar Snackbar
 
 <PageTitle>Purchase Request Draft Detail</PageTitle>
@@ -27,52 +28,87 @@ else
             <MudItem xs="12" md="6"><MudText><b>Status:</b> @_item.Status</MudText></MudItem>
             <MudItem xs="12" md="6"><MudText><b>Created:</b> @_item.CreatedAtUtc.ToLocalTime().ToString("g")</MudText></MudItem>
             <MudItem xs="12" md="6"><MudText><b>Created By:</b> @_item.CreatedByUserName</MudText></MudItem>
+            <MudItem xs="12" md="6">
+                <MudText><b>Reviewed:</b> @(_item.ReviewedAtUtc.HasValue ? $"{_item.ReviewedAtUtc.Value.ToLocalTime():g}" : "Not reviewed")</MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudText><b>Reviewed By:</b> @(_item.ReviewedByUserName ?? "—")</MudText>
+            </MudItem>
             <MudItem xs="12"><MudText><b>Note:</b> @_item.Note</MudText></MudItem>
         </MudGrid>
     </MudPaper>
 
-    @if (_item.Status != PurchaseRequestDraftStatuses.Draft)
+    @if (_item.Status == PurchaseRequestDraftStatuses.Reviewed)
     {
         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
-            This purchase request has been prepared and is now read-only.
+            This purchase request has been reviewed and is now read-only.
+        </MudAlert>
+    }
+    else if (_item.Status == PurchaseRequestDraftStatuses.Prepared)
+    {
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+            This draft is prepared and can still be adjusted before final review.
         </MudAlert>
     }
 
-    <MudTable T="PurchaseRequestDraftLineDto" Items="_item.Lines" Hover="true" Dense="true">
-        <HeaderContent>
-            <MudTh>SKU</MudTh>
-            <MudTh>Product</MudTh>
-            <MudTh>Supplier</MudTh>
-            <MudTh>Suggested</MudTh>
-            <MudTh>Requested</MudTh>
-            <MudTh class="text-right">Actions</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.ProductSku</MudTd>
-            <MudTd>@context.ProductName</MudTd>
-            <MudTd>@(context.SupplierName ?? "Unassigned")</MudTd>
-            <MudTd>@context.SuggestedQty</MudTd>
-            <MudTd>
-                <MudNumericField T="int"
-                                 Value="@context.RequestedQty"
-                                 ValueChanged="@(value => UpdateLineAsync(context, value))"
-                                 Min="1"
-                                 Immediate="true"
-                                 Disabled="@(_item.Status != PurchaseRequestDraftStatuses.Draft)"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense" />
-            </MudTd>
-            <MudTd Class="text-right">
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Error"
-                           Size="Size.Small"
-                           Disabled="@(_item.Status != PurchaseRequestDraftStatuses.Draft)"
-                           OnClick="@(() => RemoveLineAsync(context))">
-                    Remove
-                </MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
+    @foreach (var group in GetLineGroups())
+    {
+        <MudPaper Elevation="1" Class="pa-4 mb-4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudText Typo="Typo.h6">@group.SupplierName</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    @group.Lines.Count item(s) • Requested total: @group.TotalRequestedQty
+                </MudText>
+            </MudStack>
+
+            <MudTable T="PurchaseRequestDraftLineDto" Items="group.Lines" Hover="true" Dense="true">
+                <HeaderContent>
+                    <MudTh>SKU</MudTh>
+                    <MudTh>Product</MudTh>
+                    <MudTh>Supplier</MudTh>
+                    <MudTh>Suggested</MudTh>
+                    <MudTh>Requested</MudTh>
+                    <MudTh class="text-right">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.ProductSku</MudTd>
+                    <MudTd>@context.ProductName</MudTd>
+                    <MudTd>
+                        <MudSelect T="int?"
+                                   Value="@context.SupplierId"
+                                   ValueChanged="@(value => UpdateSupplierAsync(context, value))"
+                                   Disabled="@(!CanEditLines)">
+                            <MudSelectItem T="int?" Value="@((int?)null)">Unassigned</MudSelectItem>
+                            @foreach (var supplier in _suppliers)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)supplier.Id)">@supplier.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudTd>
+                    <MudTd>@context.SuggestedQty</MudTd>
+                    <MudTd>
+                        <MudNumericField T="int"
+                                         Value="@context.RequestedQty"
+                                         ValueChanged="@(value => UpdateRequestedQtyAsync(context, value))"
+                                         Min="1"
+                                         Immediate="true"
+                                         Disabled="@(!CanEditLines)"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" />
+                    </MudTd>
+                    <MudTd Class="text-right">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   Disabled="@(!CanEditLines)"
+                                   OnClick="@(() => RemoveLineAsync(context))">
+                            Remove
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
 
     @if (_item.Status == PurchaseRequestDraftStatuses.Draft)
     {
@@ -80,14 +116,25 @@ else
             Mark Prepared
         </MudButton>
     }
+    else if (_item.Status == PurchaseRequestDraftStatuses.Prepared)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-4" OnClick="ReviewAsync">
+            Mark Reviewed
+        </MudButton>
+    }
 }
 
 @code {
     [Parameter] public int Id { get; set; }
 
+    private readonly List<SupplierDto> _suppliers = new();
     private bool _isLoading = true;
     private string? _error;
     private PurchaseRequestDraftDetailDto? _item;
+
+    private bool CanEditLines
+        => _item is not null &&
+           (_item.Status == PurchaseRequestDraftStatuses.Draft || _item.Status == PurchaseRequestDraftStatuses.Prepared);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -100,6 +147,13 @@ else
         _error = null;
         try
         {
+            if (_suppliers.Count == 0)
+            {
+                var suppliers = await SupplierApiClient.GetActiveAsync();
+                _suppliers.Clear();
+                _suppliers.AddRange(suppliers);
+            }
+
             _item = await PurchaseRequestDraftApiClient.GetByIdAsync(Id);
         }
         catch (Exception ex)
@@ -112,14 +166,15 @@ else
         }
     }
 
-    private async Task UpdateLineAsync(PurchaseRequestDraftLineDto line, int value)
+    private async Task UpdateRequestedQtyAsync(PurchaseRequestDraftLineDto line, int value)
     {
         if (_item is null || value <= 0)
             return;
 
         var result = await PurchaseRequestDraftApiClient.UpdateLineAsync(_item.Id, line.Id, new UpdatePurchaseRequestDraftLineRequest
         {
-            RequestedQty = value
+            RequestedQty = value,
+            SupplierId = line.SupplierId
         });
 
         if (!result.Success)
@@ -130,6 +185,28 @@ else
         }
 
         Snackbar.Add("Requested quantity updated.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private async Task UpdateSupplierAsync(PurchaseRequestDraftLineDto line, int? supplierId)
+    {
+        if (_item is null)
+            return;
+
+        var result = await PurchaseRequestDraftApiClient.UpdateLineAsync(_item.Id, line.Id, new UpdatePurchaseRequestDraftLineRequest
+        {
+            RequestedQty = line.RequestedQty,
+            SupplierId = supplierId
+        });
+
+        if (!result.Success)
+        {
+            _error = result.ErrorMessage;
+            Snackbar.Add(result.ErrorMessage ?? "Failed to update line supplier.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Line supplier updated.", Severity.Success);
         await LoadAsync();
     }
 
@@ -165,5 +242,43 @@ else
 
         _item = result;
         Snackbar.Add("Draft marked as prepared.", Severity.Success);
+    }
+
+    private async Task ReviewAsync()
+    {
+        if (_item is null)
+            return;
+
+        var result = await PurchaseRequestDraftApiClient.ReviewAsync(_item.Id);
+        if (result is null)
+        {
+            _error = "Failed to review draft.";
+            Snackbar.Add(_error, Severity.Error);
+            return;
+        }
+
+        _item = result;
+        Snackbar.Add("Draft marked as reviewed.", Severity.Success);
+    }
+
+    private IReadOnlyList<PurchaseRequestDraftLineGroup> GetLineGroups()
+        => _item?.Lines
+            .GroupBy(line => new
+            {
+                line.SupplierId,
+                SupplierName = line.SupplierName ?? "Unassigned"
+            })
+            .OrderBy(group => group.Key.SupplierId.HasValue ? 0 : 1)
+            .ThenBy(group => group.Key.SupplierName)
+            .Select(group => new PurchaseRequestDraftLineGroup(
+                group.Key.SupplierId,
+                group.Key.SupplierName,
+                group.OrderBy(line => line.ProductName).ToList()))
+            .ToList()
+           ?? [];
+
+    private sealed record PurchaseRequestDraftLineGroup(int? SupplierId, string SupplierName, List<PurchaseRequestDraftLineDto> Lines)
+    {
+        public int TotalRequestedQty => Lines.Sum(x => x.RequestedQty);
     }
 }

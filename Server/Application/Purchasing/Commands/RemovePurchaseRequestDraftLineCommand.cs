@@ -19,8 +19,9 @@ public sealed class RemovePurchaseRequestDraftLineCommand
         if (draft is null)
             return new AppResult<Unit>.NotFound($"Draft {draftId} not found.");
 
-        if (!string.Equals(draft.Status, PurchaseRequestDraftStatuses.Draft, StringComparison.OrdinalIgnoreCase))
-            return new AppResult<Unit>.ValidationError("Only draft purchase requests can remove lines.");
+        if (!string.Equals(draft.Status, PurchaseRequestDraftStatuses.Draft, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(draft.Status, PurchaseRequestDraftStatuses.Prepared, StringComparison.OrdinalIgnoreCase))
+            return new AppResult<Unit>.ValidationError("Reviewed purchase requests cannot remove lines.");
 
         var line = await _drafts.FindLineAsync(draftId, lineId, ct);
         if (line is null)

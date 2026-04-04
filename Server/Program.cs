@@ -161,6 +161,7 @@ builder.Services.AddScoped<CreatePurchaseRequestDraftCommand>();
 builder.Services.AddScoped<UpdatePurchaseRequestDraftLineCommand>();
 builder.Services.AddScoped<RemovePurchaseRequestDraftLineCommand>();
 builder.Services.AddScoped<PreparePurchaseRequestDraftCommand>();
+builder.Services.AddScoped<ReviewPurchaseRequestDraftCommand>();
 builder.Services.AddScoped<GetAllPurchaseRequestDraftsQuery>();
 builder.Services.AddScoped<GetPurchaseRequestDraftByIdQuery>();
 

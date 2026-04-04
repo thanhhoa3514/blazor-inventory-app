@@ -21,6 +21,9 @@ public class Product
     public int CategoryId { get; set; }
     public Category? Category { get; set; }
 
+    public int? PreferredSupplierId { get; set; }
+    public Supplier? PreferredSupplier { get; set; }
+
     public int OnHandQty { get; set; }
 
     [Column(TypeName = "decimal(18,2)")]

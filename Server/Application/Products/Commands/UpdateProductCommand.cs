@@ -27,6 +27,7 @@ public sealed class UpdateProductCommand
         var oldName = entity.Name;
         var oldDescription = entity.Description;
         var oldCategoryId = entity.CategoryId;
+        var oldPreferredSupplierId = entity.PreferredSupplierId;
         var oldReorderLevel = entity.ReorderLevel;
         var oldTargetStockLevel = entity.TargetStockLevel;
         var oldIsActive = entity.IsActive;
@@ -37,6 +38,9 @@ public sealed class UpdateProductCommand
         if (request.TargetStockLevel < request.ReorderLevel)
             return new AppResult<ProductDto>.ValidationError("Target stock level must be greater than or equal to reorder level.");
 
+        if (request.PreferredSupplierId.HasValue && !await _repo.PreferredSupplierExistsAsync(request.PreferredSupplierId.Value, ct))
+            return new AppResult<ProductDto>.ValidationError("Preferred supplier does not exist or is inactive.");
+
         var normalizedSku = request.Sku.Trim().ToUpperInvariant();
         if (await _repo.ExistsBySkuAsync(normalizedSku, excludeId: id, ct))
             return new AppResult<ProductDto>.Conflict("Product SKU must be unique.");
@@ -45,6 +49,7 @@ public sealed class UpdateProductCommand
         entity.Name = request.Name.Trim();
         entity.Description = request.Description?.Trim();
         entity.CategoryId = request.CategoryId;
+        entity.PreferredSupplierId = request.PreferredSupplierId;
         entity.ReorderLevel = request.ReorderLevel;
         entity.TargetStockLevel = request.TargetStockLevel;
         entity.IsActive = request.IsActive;
@@ -58,7 +63,7 @@ public sealed class UpdateProductCommand
             $"Updated product '{entity.Sku} - {entity.Name}'.",
             beforeState: before,
             afterState: Snapshot(entity),
-            changedFields: BuildChangedFields(oldSku, oldName, oldDescription, oldCategoryId, oldReorderLevel, oldTargetStockLevel, oldIsActive, entity),
+            changedFields: BuildChangedFields(oldSku, oldName, oldDescription, oldCategoryId, oldPreferredSupplierId, oldReorderLevel, oldTargetStockLevel, oldIsActive, entity),
             ct: ct);
 
         var dto = await _repo.GetByIdAsync(id, ct);
@@ -72,6 +77,7 @@ public sealed class UpdateProductCommand
         entity.Name,
         entity.Description,
         entity.CategoryId,
+        entity.PreferredSupplierId,
         entity.OnHandQty,
         entity.AverageCost,
         entity.ReorderLevel,
@@ -88,6 +94,7 @@ public sealed class UpdateProductCommand
         string oldName,
         string? oldDescription,
         int oldCategoryId,
+        int? oldPreferredSupplierId,
         int oldReorderLevel,
         int oldTargetStockLevel,
         bool oldIsActive,
@@ -102,6 +109,8 @@ public sealed class UpdateProductCommand
             changed.Add(new { field = "Description", oldValue = oldDescription, newValue = entity.Description });
         if (oldCategoryId != entity.CategoryId)
             changed.Add(new { field = "CategoryId", oldValue = oldCategoryId, newValue = entity.CategoryId });
+        if (oldPreferredSupplierId != entity.PreferredSupplierId)
+            changed.Add(new { field = "PreferredSupplierId", oldValue = oldPreferredSupplierId, newValue = entity.PreferredSupplierId });
         if (oldReorderLevel != entity.ReorderLevel)
             changed.Add(new { field = "ReorderLevel", oldValue = oldReorderLevel, newValue = entity.ReorderLevel });
         if (oldTargetStockLevel != entity.TargetStockLevel)

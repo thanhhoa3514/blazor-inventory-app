@@ -6,6 +6,7 @@ public static class PurchaseRequestDraftStatuses
 {
     public const string Draft = "Draft";
     public const string Prepared = "Prepared";
+    public const string Reviewed = "Reviewed";
 }
 
 public record PurchaseRequestDraftListDto(
@@ -14,7 +15,9 @@ public record PurchaseRequestDraftListDto(
     string Status,
     DateTime CreatedAtUtc,
     string CreatedByUserName,
-    int LineCount);
+    int LineCount,
+    DateTime? ReviewedAtUtc,
+    string? ReviewedByUserName);
 
 public record PurchaseRequestDraftLineDto(
     int Id,
@@ -33,6 +36,8 @@ public class PurchaseRequestDraftDetailDto
     public string Status { get; set; } = PurchaseRequestDraftStatuses.Draft;
     public DateTime CreatedAtUtc { get; set; }
     public string CreatedByUserName { get; set; } = string.Empty;
+    public DateTime? ReviewedAtUtc { get; set; }
+    public string? ReviewedByUserName { get; set; }
     public string? Note { get; set; }
     public List<PurchaseRequestDraftLineDto> Lines { get; set; } = new();
 }
@@ -62,4 +67,6 @@ public class UpdatePurchaseRequestDraftLineRequest
 {
     [Range(1, int.MaxValue)]
     public int RequestedQty { get; set; }
+
+    public int? SupplierId { get; set; }
 }

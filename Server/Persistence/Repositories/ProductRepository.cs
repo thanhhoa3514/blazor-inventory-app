@@ -18,6 +18,7 @@ public sealed class ProductRepository : IProductRepository
         => await _db.Products.AsNoTracking()
             .Where(x => !x.IsDeleted)
             .Include(x => x.Category)
+            .Include(x => x.PreferredSupplier)
             .OrderBy(x => x.Name)
             .Select(x => new ProductDto(
                 x.Id,
@@ -26,6 +27,8 @@ public sealed class ProductRepository : IProductRepository
                 x.Description,
                 x.CategoryId,
                 x.Category!.Name,
+                x.PreferredSupplierId,
+                x.PreferredSupplier != null ? x.PreferredSupplier.Name : null,
                 x.OnHandQty,
                 x.AverageCost,
                 x.ReorderLevel,
@@ -39,6 +42,7 @@ public sealed class ProductRepository : IProductRepository
         => await _db.Products.AsNoTracking()
             .Where(x => x.IsDeleted)
             .Include(x => x.Category)
+            .Include(x => x.PreferredSupplier)
             .OrderBy(x => x.Name)
             .Select(x => new ProductDto(
                 x.Id,
@@ -47,6 +51,8 @@ public sealed class ProductRepository : IProductRepository
                 x.Description,
                 x.CategoryId,
                 x.Category != null ? x.Category.Name : "Uncategorized",
+                x.PreferredSupplierId,
+                x.PreferredSupplier != null ? x.PreferredSupplier.Name : null,
                 x.OnHandQty,
                 x.AverageCost,
                 x.ReorderLevel,
@@ -60,6 +66,7 @@ public sealed class ProductRepository : IProductRepository
         => await _db.Products.AsNoTracking()
             .Where(x => !x.IsDeleted)
             .Include(x => x.Category)
+            .Include(x => x.PreferredSupplier)
             .Where(x => x.Id == id)
             .Select(x => new ProductDto(
                 x.Id,
@@ -68,6 +75,8 @@ public sealed class ProductRepository : IProductRepository
                 x.Description,
                 x.CategoryId,
                 x.Category!.Name,
+                x.PreferredSupplierId,
+                x.PreferredSupplier != null ? x.PreferredSupplier.Name : null,
                 x.OnHandQty,
                 x.AverageCost,
                 x.ReorderLevel,
@@ -79,6 +88,9 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<bool> CategoryExistsAsync(int categoryId, CancellationToken ct = default)
         => await _db.Categories.AnyAsync(x => x.Id == categoryId && !x.IsDeleted, ct);
+
+    public async Task<bool> PreferredSupplierExistsAsync(int supplierId, CancellationToken ct = default)
+        => await _db.Suppliers.AnyAsync(x => x.Id == supplierId && x.IsActive && !x.IsDeleted, ct);
 
     public async Task<bool> ExistsBySkuAsync(string sku, int? excludeId, CancellationToken ct = default)
         => excludeId.HasValue

@@ -23,6 +23,14 @@ public class PurchaseRequestDraft
     [MaxLength(256)]
     public string CreatedByUserName { get; set; } = string.Empty;
 
+    public DateTime? ReviewedAtUtc { get; set; }
+
+    [MaxLength(450)]
+    public string? ReviewedByUserId { get; set; }
+
+    [MaxLength(256)]
+    public string? ReviewedByUserName { get; set; }
+
     [MaxLength(500)]
     public string? Note { get; set; }
 

@@ -23,7 +23,9 @@ public sealed class PurchaseRequestDraftRepository : IPurchaseRequestDraftReposi
                 x.Status,
                 x.CreatedAtUtc,
                 x.CreatedByUserName,
-                x.Lines.Count))
+                x.Lines.Count,
+                x.ReviewedAtUtc,
+                x.ReviewedByUserName))
             .ToListAsync(ct);
 
     public async Task<PurchaseRequestDraftDetailDto?> GetByIdAsync(int id, CancellationToken ct = default)
@@ -40,6 +42,8 @@ public sealed class PurchaseRequestDraftRepository : IPurchaseRequestDraftReposi
                 Status = x.Status,
                 CreatedAtUtc = x.CreatedAtUtc,
                 CreatedByUserName = x.CreatedByUserName,
+                ReviewedAtUtc = x.ReviewedAtUtc,
+                ReviewedByUserName = x.ReviewedByUserName,
                 Note = x.Note,
                 Lines = x.Lines
                     .OrderBy(l => l.Id)

@@ -13,6 +13,8 @@ public static class ProductMapper
             entity.Description,
             entity.CategoryId,
             categoryName,
+            entity.PreferredSupplierId,
+            entity.PreferredSupplier?.Name,
             entity.OnHandQty,
             entity.AverageCost,
             entity.ReorderLevel,
